@@ -11,11 +11,20 @@ const taskCount = document.getElementById("taskCount");
 const savedTasks = localStorage.getItem("aiCompanyTasks");
 let tasks = savedTasks ? JSON.parse(savedTasks) : [];
 
+/*
+  以前のデータを新しい状態管理に変換する
+*/
 tasks = tasks.map(function (task) {
+  let taskStatus = task.status;
+
+  if (!taskStatus) {
+    taskStatus = task.completed ? "completed" : "pending";
+  }
+
   return {
     text: task.text,
-    completed: task.completed || false,
-    priority: task.priority || "通常"
+    priority: task.priority || "通常",
+    status: taskStatus
   };
 });
 
@@ -61,6 +70,30 @@ function getPriorityValue(priority) {
   return 3;
 }
 
+function getStatusValue(taskStatus) {
+  if (taskStatus === "pending") {
+    return 1;
+  }
+
+  if (taskStatus === "running") {
+    return 2;
+  }
+
+  return 3;
+}
+
+function getStatusText(taskStatus) {
+  if (taskStatus === "running") {
+    return "（実行中）";
+  }
+
+  if (taskStatus === "completed") {
+    return "（完了）";
+  }
+
+  return "";
+}
+
 function renderTasks() {
   taskList.replaceChildren();
 
@@ -73,11 +106,10 @@ function renderTasks() {
       return priorityDifference;
     }
 
-    if (a.completed !== b.completed) {
-      return a.completed ? 1 : -1;
-    }
-
-    return 0;
+    return (
+      getStatusValue(a.status) -
+      getStatusValue(b.status)
+    );
   });
 
   sortedTasks.forEach(function (task) {
@@ -89,11 +121,8 @@ function renderTasks() {
       task.text +
       "（優先度：" +
       task.priority +
-      "）";
-
-    if (task.completed) {
-      taskText.textContent += "（完了）";
-    }
+      "）" +
+      getStatusText(task.status);
 
     const editButton = document.createElement("button");
     editButton.textContent = "編集";
@@ -124,23 +153,46 @@ function renderTasks() {
       status.textContent = "タスクを編集しました";
     });
 
-    const completeButton = document.createElement("button");
-    completeButton.textContent =
-      task.completed ? "未完了に戻す" : "完了";
-    completeButton.type = "button";
+    const actionButton = document.createElement("button");
+    actionButton.type = "button";
 
-    completeButton.addEventListener("click", function () {
-      task.completed = !task.completed;
+    if (task.status === "pending") {
+      actionButton.textContent = "実行";
 
-      saveTasks();
-      renderTasks();
+      actionButton.addEventListener("click", function () {
+        task.status = "running";
 
-      if (task.completed) {
+        saveTasks();
+        renderTasks();
+
+        status.textContent = "タスクを実行中にしました";
+        result.textContent = "実行中：" + task.text;
+      });
+    } else if (task.status === "running") {
+      actionButton.textContent = "完了";
+
+      actionButton.addEventListener("click", function () {
+        task.status = "completed";
+
+        saveTasks();
+        renderTasks();
+
         status.textContent = "タスクを完了にしました";
-      } else {
+        result.textContent = "完了：" + task.text;
+      });
+    } else {
+      actionButton.textContent = "未完了に戻す";
+
+      actionButton.addEventListener("click", function () {
+        task.status = "pending";
+
+        saveTasks();
+        renderTasks();
+
         status.textContent = "タスクを未完了に戻しました";
-      }
-    });
+        result.textContent = "未完了：" + task.text;
+      });
+    }
 
     const deleteButton = document.createElement("button");
     deleteButton.textContent = "削除";
@@ -161,7 +213,7 @@ function renderTasks() {
 
     item.appendChild(taskText);
     item.appendChild(editButton);
-    item.appendChild(completeButton);
+    item.appendChild(actionButton);
     item.appendChild(deleteButton);
 
     taskList.appendChild(item);
@@ -180,8 +232,8 @@ addTaskButton.addEventListener("click", function () {
 
   tasks.push({
     text: taskText,
-    completed: false,
-    priority: prioritySelect.value
+    priority: prioritySelect.value,
+    status: "pending"
   });
 
   saveTasks();

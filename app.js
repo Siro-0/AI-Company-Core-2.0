@@ -8,17 +8,33 @@ const addTaskButton = document.getElementById("addTaskButton");
 const taskList = document.getElementById("taskList");
 const taskCount = document.getElementById("taskCount");
 
-const savedTasks = localStorage.getItem("aiCompanyTasks");
-let tasks = savedTasks ? JSON.parse(savedTasks) : [];
+const founderInput =
+  document.getElementById("founderInput");
+
+const founderSubmitButton =
+  document.getElementById("founderSubmitButton");
+
+const founderLog =
+  document.getElementById("founderLog");
+
+const savedTasks =
+  localStorage.getItem("aiCompanyTasks");
+
+let tasks = savedTasks
+  ? JSON.parse(savedTasks)
+  : [];
 
 /*
-  既存データを新しい形式に合わせる
+  既存タスクを新しい形式に合わせる
 */
 tasks = tasks.map(function (task) {
   let taskStatus = task.status;
 
   if (!taskStatus) {
-    taskStatus = task.completed ? "completed" : "pending";
+    taskStatus =
+      task.completed
+        ? "completed"
+        : "pending";
   }
 
   return {
@@ -32,39 +48,70 @@ tasks = tasks.map(function (task) {
   };
 });
 
+
 /*
   優先度選択
 */
-const prioritySelect = document.createElement("select");
+const prioritySelect =
+  document.createElement("select");
 
 prioritySelect.innerHTML = `
-  <option value="高">優先度：高</option>
-  <option value="通常" selected>優先度：通常</option>
-  <option value="低">優先度：低</option>
+  <option value="高">
+    優先度：高
+  </option>
+
+  <option value="通常" selected>
+    優先度：通常
+  </option>
+
+  <option value="低">
+    優先度：低
+  </option>
 `;
 
 prioritySelect.style.width = "100%";
 prioritySelect.style.marginTop = "14px";
 prioritySelect.style.padding = "10px";
 
-taskInput.insertAdjacentElement("afterend", prioritySelect);
+taskInput.insertAdjacentElement(
+  "afterend",
+  prioritySelect
+);
+
+
+/*
+  Founder Roomの入力欄
+*/
+founderInput.style.width = "100%";
+founderInput.style.boxSizing = "border-box";
+founderInput.style.marginTop = "8px";
+founderInput.style.padding = "10px";
+founderInput.style.resize = "vertical";
+
 
 /*
   基本動作テスト
 */
-runButton.addEventListener("click", function () {
-  const inputText = userInput.value.trim();
+runButton.addEventListener(
+  "click",
+  function () {
+    const inputText =
+      userInput.value.trim();
 
-  status.textContent = "正常稼働";
+    status.textContent =
+      "正常稼働";
 
-  if (inputText === "") {
-    result.textContent =
-      "動作テストに成功しました。入力は空です。";
-  } else {
-    result.textContent =
-      "入力を受け取りました：" + inputText;
+    if (inputText === "") {
+      result.textContent =
+        "動作テストに成功しました。入力は空です。";
+    } else {
+      result.textContent =
+        "入力を受け取りました：" +
+        inputText;
+    }
   }
-});
+);
+
 
 /*
   タスク保存
@@ -76,8 +123,20 @@ function saveTasks() {
   );
 }
 
+
 /*
-  優先度
+  Founder Room保存
+*/
+function saveFounderMessages() {
+  localStorage.setItem(
+    "aiCompanyFounderMessages",
+    JSON.stringify(founderMessages)
+  );
+}
+
+
+/*
+  優先度の順番
 */
 function getPriorityValue(priority) {
   if (priority === "高") {
@@ -91,8 +150,9 @@ function getPriorityValue(priority) {
   return 3;
 }
 
+
 /*
-  状態
+  タスク状態の順番
 */
 function getStatusValue(taskStatus) {
   if (taskStatus === "pending") {
@@ -106,6 +166,10 @@ function getStatusValue(taskStatus) {
   return 3;
 }
 
+
+/*
+  タスク状態の表示
+*/
 function getStatusText(taskStatus) {
   if (taskStatus === "running") {
     return "（実行中）";
@@ -118,6 +182,7 @@ function getStatusText(taskStatus) {
   return "";
 }
 
+
 /*
   実行日時
 */
@@ -126,30 +191,35 @@ function formatRunTime(dateString) {
     return "まだ実行されていません";
   }
 
-  return new Date(dateString).toLocaleString("ja-JP");
+  return new Date(
+    dateString
+  ).toLocaleString("ja-JP");
 }
+
 
 /*
-  --------------------------------
   Local Executor
-  --------------------------------
-
-  今はテスト用のローカル実行器。
-  外部APIは使用しない。
+  現時点ではテスト用
 */
 function executeTaskLocally(task) {
-  return new Promise(function (resolve) {
-    setTimeout(function () {
-      resolve({
-        success: true,
-        executor: "local",
-        result:
-          "ローカル実行を受け付けました：" +
-          task.text
-      });
-    }, 300);
-  });
+  return new Promise(
+    function (resolve) {
+      setTimeout(
+        function () {
+          resolve({
+            success: true,
+            executor: "local",
+            result:
+              "ローカル実行を受け付けました：" +
+              task.text
+          });
+        },
+        300
+      );
+    }
+  );
 }
+
 
 /*
   タスク一覧表示
@@ -157,233 +227,531 @@ function executeTaskLocally(task) {
 function renderTasks() {
   taskList.replaceChildren();
 
-  const sortedTasks = [...tasks].sort(function (a, b) {
-    const priorityDifference =
-      getPriorityValue(a.priority) -
-      getPriorityValue(b.priority);
+  const sortedTasks =
+    [...tasks].sort(
+      function (a, b) {
 
-    if (priorityDifference !== 0) {
-      return priorityDifference;
-    }
+        const priorityDifference =
+          getPriorityValue(a.priority) -
+          getPriorityValue(b.priority);
 
-    return (
-      getStatusValue(a.status) -
-      getStatusValue(b.status)
+        if (priorityDifference !== 0) {
+          return priorityDifference;
+        }
+
+        return (
+          getStatusValue(a.status) -
+          getStatusValue(b.status)
+        );
+      }
     );
-  });
 
-  sortedTasks.forEach(function (task) {
-    const item = document.createElement("li");
+  sortedTasks.forEach(
+    function (task) {
 
-    const taskText = document.createElement("span");
+      const item =
+        document.createElement("li");
 
-    taskText.textContent =
-      task.text +
-      "（優先度：" +
-      task.priority +
-      "）" +
-      getStatusText(task.status);
 
-    const historyText = document.createElement("small");
+      /*
+        タスク名
+      */
+      const taskText =
+        document.createElement("span");
 
-    historyText.textContent =
-      "実行回数：" +
-      task.runCount +
-      "回 / 最終実行：" +
-      formatRunTime(task.lastRunAt);
+      taskText.textContent =
+        task.text +
+        "（優先度：" +
+        task.priority +
+        "）" +
+        getStatusText(task.status);
 
-    const taskResult = document.createElement("small");
 
-    if (task.result) {
-      taskResult.textContent =
-        "実行結果：" + task.result;
-    } else {
-      taskResult.textContent =
-        "実行結果：まだありません";
-    }
+      /*
+        実行履歴
+      */
+      const historyText =
+        document.createElement("small");
 
-    const executorText = document.createElement("small");
+      historyText.textContent =
+        "実行回数：" +
+        task.runCount +
+        "回 / 最終実行：" +
+        formatRunTime(task.lastRunAt);
 
-    executorText.textContent =
-      "実行方式：" +
-      (task.executor === "local"
-        ? "Local Executor"
-        : task.executor);
 
-    /*
-      編集
-    */
-    const editButton = document.createElement("button");
-    editButton.textContent = "編集";
-    editButton.type = "button";
+      /*
+        実行結果
+      */
+      const taskResult =
+        document.createElement("small");
 
-    editButton.addEventListener("click", function () {
-      const newText = window.prompt(
-        "新しいタスク名を入力してください",
-        task.text
+      if (task.result) {
+        taskResult.textContent =
+          "実行結果：" +
+          task.result;
+      } else {
+        taskResult.textContent =
+          "実行結果：まだありません";
+      }
+
+
+      /*
+        実行方式
+      */
+      const executorText =
+        document.createElement("small");
+
+      executorText.textContent =
+        "実行方式：" +
+        (
+          task.executor === "local"
+            ? "Local Executor"
+            : task.executor
+        );
+
+
+      /*
+        編集
+      */
+      const editButton =
+        document.createElement("button");
+
+      editButton.textContent =
+        "編集";
+
+      editButton.type =
+        "button";
+
+      editButton.addEventListener(
+        "click",
+        function () {
+
+          const newText =
+            window.prompt(
+              "新しいタスク名を入力してください",
+              task.text
+            );
+
+          if (newText === null) {
+            return;
+          }
+
+          const trimmedText =
+            newText.trim();
+
+          if (trimmedText === "") {
+            status.textContent =
+              "タスク名を入力してください";
+
+            return;
+          }
+
+          task.text =
+            trimmedText;
+
+          saveTasks();
+          renderTasks();
+
+          status.textContent =
+            "タスクを編集しました";
+        }
       );
 
-      if (newText === null) {
-        return;
-      }
 
-      const trimmedText = newText.trim();
+      /*
+        実行・完了・未完了
+      */
+      const actionButton =
+        document.createElement("button");
 
-      if (trimmedText === "") {
-        status.textContent =
-          "タスク名を入力してください";
-        return;
-      }
+      actionButton.type =
+        "button";
 
-      task.text = trimmedText;
 
-      saveTasks();
-      renderTasks();
+      /*
+        未完了
+      */
+      if (task.status === "pending") {
 
-      status.textContent =
-        "タスクを編集しました";
-    });
+        actionButton.textContent =
+          "実行";
 
-    /*
-      実行
-    */
-    const actionButton = document.createElement("button");
-    actionButton.type = "button";
+        actionButton.addEventListener(
+          "click",
+          async function () {
 
-    if (task.status === "pending") {
-      actionButton.textContent = "実行";
+            task.status =
+              "running";
 
-      actionButton.addEventListener("click", async function () {
-        task.status = "running";
-        task.runCount += 1;
-        task.lastRunAt = new Date().toISOString();
+            task.runCount += 1;
 
-        saveTasks();
-        renderTasks();
+            task.lastRunAt =
+              new Date().toISOString();
 
-        status.textContent =
-          "ローカル実行を開始しました";
+            saveTasks();
+            renderTasks();
 
-        result.textContent =
-          "実行中：" + task.text;
+            status.textContent =
+              "ローカル実行を開始しました";
 
-        const execution =
-          await executeTaskLocally(task);
+            result.textContent =
+              "実行中：" +
+              task.text;
 
-        if (execution.success) {
-          task.status = "completed";
-          task.executor = execution.executor;
-          task.result = execution.result;
 
-          saveTasks();
-          renderTasks();
+            const execution =
+              await executeTaskLocally(
+                task
+              );
 
-          status.textContent =
-            "ローカル実行が完了しました";
 
-          result.textContent =
-            execution.result;
-        } else {
-          task.status = "pending";
+            if (execution.success) {
 
-          saveTasks();
-          renderTasks();
+              task.status =
+                "completed";
 
-          status.textContent =
-            "タスクの実行に失敗しました";
-        }
-      });
-    } else {
-      actionButton.textContent =
+              task.executor =
+                execution.executor;
+
+              task.result =
+                execution.result;
+
+              saveTasks();
+              renderTasks();
+
+              status.textContent =
+                "ローカル実行が完了しました";
+
+              result.textContent =
+                execution.result;
+
+            } else {
+
+              task.status =
+                "pending";
+
+              saveTasks();
+              renderTasks();
+
+              status.textContent =
+                "タスクの実行に失敗しました";
+            }
+          }
+        );
+
+
+      /*
+        実行中
+      */
+      } else if (
         task.status === "running"
-          ? "完了"
-          : "未完了に戻す";
+      ) {
 
-      actionButton.addEventListener("click", function () {
-        if (task.status === "running") {
-          task.status = "completed";
-        } else {
-          task.status = "pending";
-        }
+        actionButton.textContent =
+          "完了";
 
-        saveTasks();
-        renderTasks();
+        actionButton.addEventListener(
+          "click",
+          function () {
 
-        status.textContent =
-          task.status === "completed"
-            ? "タスクを完了にしました"
-            : "タスクを未完了に戻しました";
-      });
-    }
+            const taskResult =
+              window.prompt(
+                "このタスクの実行結果を入力してください",
+                task.result
+              );
 
-    /*
-      削除
-    */
-    const deleteButton = document.createElement("button");
-    deleteButton.textContent = "削除";
-    deleteButton.type = "button";
+            if (taskResult === null) {
+              return;
+            }
 
-    deleteButton.addEventListener("click", function () {
-      const taskIndex = tasks.indexOf(task);
+            const trimmedResult =
+              taskResult.trim();
 
-      if (taskIndex !== -1) {
-        tasks.splice(taskIndex, 1);
+            if (trimmedResult === "") {
+              status.textContent =
+                "実行結果を入力してください";
+
+              return;
+            }
+
+            task.result =
+              trimmedResult;
+
+            task.status =
+              "completed";
+
+            saveTasks();
+            renderTasks();
+
+            status.textContent =
+              "タスクを完了にしました";
+
+            result.textContent =
+              "完了：" +
+              task.text;
+          }
+        );
+
+
+      /*
+        完了
+      */
+      } else {
+
+        actionButton.textContent =
+          "未完了に戻す";
+
+        actionButton.addEventListener(
+          "click",
+          function () {
+
+            task.status =
+              "pending";
+
+            saveTasks();
+            renderTasks();
+
+            status.textContent =
+              "タスクを未完了に戻しました";
+
+            result.textContent =
+              "未完了：" +
+              task.text;
+          }
+        );
       }
 
-      saveTasks();
-      renderTasks();
 
-      status.textContent =
-        "タスクを削除しました";
-    });
+      /*
+        削除
+      */
+      const deleteButton =
+        document.createElement("button");
 
-    item.appendChild(taskText);
-    item.appendChild(historyText);
-    item.appendChild(taskResult);
-    item.appendChild(executorText);
-    item.appendChild(editButton);
-    item.appendChild(actionButton);
-    item.appendChild(deleteButton);
+      deleteButton.textContent =
+        "削除";
 
-    taskList.appendChild(item);
-  });
+      deleteButton.type =
+        "button";
+
+      deleteButton.addEventListener(
+        "click",
+        function () {
+
+          const taskIndex =
+            tasks.indexOf(task);
+
+          if (taskIndex !== -1) {
+            tasks.splice(
+              taskIndex,
+              1
+            );
+          }
+
+          saveTasks();
+          renderTasks();
+
+          status.textContent =
+            "タスクを削除しました";
+        }
+      );
+
+
+      /*
+        一覧へ追加
+      */
+      item.appendChild(taskText);
+      item.appendChild(historyText);
+      item.appendChild(taskResult);
+      item.appendChild(executorText);
+      item.appendChild(editButton);
+      item.appendChild(actionButton);
+      item.appendChild(deleteButton);
+
+      taskList.appendChild(item);
+    }
+  );
 
   taskCount.textContent =
-    "登録数：" + tasks.length + "件";
+    "登録数：" +
+    tasks.length +
+    "件";
 }
+
 
 /*
   タスク登録
 */
-addTaskButton.addEventListener("click", function () {
-  const taskText = taskInput.value.trim();
+addTaskButton.addEventListener(
+  "click",
+  function () {
 
-  if (taskText === "") {
+    const taskText =
+      taskInput.value.trim();
+
+    if (taskText === "") {
+
+      status.textContent =
+        "タスクを入力してください";
+
+      return;
+    }
+
+
+    tasks.push({
+      text: taskText,
+      priority: prioritySelect.value,
+      status: "pending",
+      runCount: 0,
+      lastRunAt: null,
+      result: "",
+      executor: "local"
+    });
+
+
+    saveTasks();
+
+
+    taskInput.value =
+      "";
+
+    prioritySelect.value =
+      "通常";
+
+
+    renderTasks();
+
+
     status.textContent =
-      "タスクを入力してください";
-    return;
+      "タスクを登録しました";
   }
+);
 
-  tasks.push({
-    text: taskText,
-    priority: prioritySelect.value,
-    status: "pending",
-    runCount: 0,
-    lastRunAt: null,
-    result: "",
-    executor: "local"
-  });
 
-  saveTasks();
+/*
+  Founder Room
+*/
+const savedFounderMessages =
+  localStorage.getItem(
+    "aiCompanyFounderMessages"
+  );
 
-  taskInput.value = "";
-  prioritySelect.value = "通常";
+let founderMessages =
+  savedFounderMessages
+    ? JSON.parse(savedFounderMessages)
+    : [];
 
-  renderTasks();
 
-  status.textContent =
-    "タスクを登録しました";
-});
+/*
+  Founder Room表示
+*/
+function renderFounderMessages() {
 
+  founderLog.replaceChildren();
+
+
+  founderMessages.forEach(
+    function (message) {
+
+      const item =
+        document.createElement("li");
+
+
+      const messageText =
+        document.createElement("p");
+
+      messageText.textContent =
+        "Founder：" +
+        message.text;
+
+
+      const messageStatus =
+        document.createElement("small");
+
+      messageStatus.textContent =
+        "状態：" +
+        message.status;
+
+
+      const messageTime =
+        document.createElement("small");
+
+      messageTime.textContent =
+        "提出日時：" +
+        new Date(
+          message.createdAt
+        ).toLocaleString("ja-JP");
+
+
+      item.appendChild(
+        messageText
+      );
+
+      item.appendChild(
+        messageStatus
+      );
+
+      item.appendChild(
+        messageTime
+      );
+
+
+      founderLog.appendChild(
+        item
+      );
+    }
+  );
+}
+
+
+/*
+  Founder Roomへ相談を提出
+*/
+founderSubmitButton.addEventListener(
+  "click",
+  function () {
+
+    const text =
+      founderInput.value.trim();
+
+
+    if (text === "") {
+
+      status.textContent =
+        "相談内容を入力してください";
+
+      return;
+    }
+
+
+    founderMessages.push({
+      text: text,
+      status: "CEO協議待ち",
+      createdAt:
+        new Date().toISOString()
+    });
+
+
+    saveFounderMessages();
+
+
+    founderInput.value =
+      "";
+
+
+    renderFounderMessages();
+
+
+    status.textContent =
+      "Founder Roomに相談を提出しました";
+  }
+);
+
+
+/*
+  初期表示
+*/
 saveTasks();
 renderTasks();
+renderFounderMessages();

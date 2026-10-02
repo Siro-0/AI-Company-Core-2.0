@@ -28,7 +28,22 @@ function renderTasks() {
 
   tasks.forEach(function (task, index) {
     const item = document.createElement("li");
-    item.textContent = (index + 1) + ". " + task;
+    const taskText = document.createElement("span");
+    const deleteButton = document.createElement("button");
+
+    taskText.textContent = (index + 1) + ". " + task;
+
+    deleteButton.textContent = "削除";
+    deleteButton.type = "button";
+
+    deleteButton.addEventListener("click", function () {
+      tasks.splice(index, 1);
+      renderTasks();
+      status.textContent = "タスクを削除しました";
+    });
+
+    item.appendChild(taskText);
+    item.appendChild(deleteButton);
     taskList.appendChild(item);
   });
 

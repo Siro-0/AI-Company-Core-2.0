@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 """
 AI Company Core - Local Executor
-
-AI Company Core 2.0 / Company Core 3.0
+Company Core 3.0 / Real Local Executor
 
 役割:
-- Company Coreからlocalhost経由でタスクを受け取る
-- PC上で実際のローカル処理を行う
-- 結果をCompany Coreへ返す
-- 実行結果をcompany_workspace/reports/へ保存する
+- Company Core から localhost 経由でタスクを受け取る
+- PC上で定義済みの安全なローカル処理を実行する
+- 結果と成果物のパスをCompany Coreへ返す
+- company_workspace/reports に実行レポートを保存する
 
 安全設計:
 - 任意のシェルコマンドは実行しない
-- 実行可能な処理はこのファイル内で定義されたものだけ
-- localhost (127.0.0.1) のみで待ち受ける
+- 127.0.0.1 でのみ待ち受ける
+- 実行処理はこのファイル内で定義されたものだけ
 """
 
 from __future__ import annotations
@@ -55,7 +54,6 @@ REPORTS_DIR = (
     / "reports"
 )
 
-
 BASE_DIR.mkdir(
     parents=True,
     exist_ok=True
@@ -72,22 +70,16 @@ REPORTS_DIR.mkdir(
 # =====================================================
 
 def iso_now() -> str:
-    """
-    UTC ISO timestamp.
-    """
-    return (
-        datetime
-        .now(timezone.utc)
-        .isoformat()
-    )
+    """UTC ISO timestampを返す。"""
+    return datetime.now(
+        timezone.utc
+    ).isoformat()
 
 
 def json_bytes(
     payload: dict[str, Any]
 ) -> bytes:
-    """
-    JSONレスポンスをUTF-8 bytesへ変換。
-    """
+    """JSONレスポンスをUTF-8 bytesへ変換する。"""
     return json.dumps(
         payload,
         ensure_ascii=False,
@@ -100,7 +92,7 @@ def safe_filename(
     fallback: str = "task"
 ) -> str:
     """
-    ファイル名として安全な文字だけにする。
+    ファイル名として危険な文字を除去する。
     """
 
     value = re.sub(
@@ -115,16 +107,12 @@ def safe_filename(
         value
     )
 
-    value = value.strip(
-        "_"
-    )
+    value = value.strip("_")
 
     if not value:
         return fallback
 
-    return value[
-        :80
-    ]
+    return value[:80]
 
 
 # =====================================================
@@ -137,15 +125,14 @@ def write_report(
     body: str
 ) -> str:
     """
-    Markdown形式の実ファイルを生成。
+    Markdown形式の実ファイルを生成する。
     """
 
-    timestamp =
+    timestamp = (
         datetime
         .now()
-        .strftime(
-            "%Y%m%d_%H%M%S"
-        )
+        .strftime("%Y%m%d_%H%M%S")
+    )
 
     filename = (
         f"{timestamp}_"
@@ -181,25 +168,19 @@ def write_report(
 # =====================================================
 
 def workspace_files() -> list[Path]:
-    """
-    company_workspace内のファイル一覧。
-    """
+    """company_workspace内のファイル一覧を返す。"""
 
     return [
         path
-        for path
-        in BASE_DIR.rglob("*")
+        for path in BASE_DIR.rglob("*")
         if path.is_file()
     ]
 
 
 def workspace_summary() -> dict[str, Any]:
-    """
-    Workspaceの基本統計を取得。
-    """
+    """Workspaceの基本統計を取得する。"""
 
-    files =
-        workspace_files()
+    files = workspace_files()
 
     total_bytes = 0
 
@@ -211,29 +192,24 @@ def workspace_summary() -> dict[str, Any]:
     for path in files:
 
         try:
-
             total_bytes += (
                 path.stat()
                 .st_size
             )
 
         except OSError:
-
             continue
 
-        suffix =
+        extension = (
             path.suffix.lower()
-
-        if not suffix:
-            suffix = (
-                "[no_extension]"
-            )
+            or "[no_extension]"
+        )
 
         extension_counts[
-            suffix
+            extension
         ] = (
             extension_counts.get(
-                suffix,
+                extension,
                 0
             ) + 1
         )
@@ -258,19 +234,23 @@ def run_workspace_analysis(
     task: dict[str, Any]
 ) -> dict[str, Any]:
     """
-    Workspaceを実際に分析して、
-    Markdownレポートを生成。
+    Workspaceを実際に分析して
+    Markdownレポートを生成する。
     """
 
-    summary =
+    summary = (
         workspace_summary()
+    )
 
     body = (
         "## Workspace Analysis\n\n"
+
         f"- ファイル数: "
         f"{summary['file_count']}\n"
+
         f"- 合計サイズ(bytes): "
         f"{summary['total_bytes']}\n\n"
+
         "### 拡張子別ファイル数\n\n"
     )
 
@@ -296,15 +276,14 @@ def run_workspace_analysis(
             "- まだ対象ファイルはありません。\n"
         )
 
-    output_path =
-        write_report(
-            "workspace_analysis",
-            task.get(
-                "title",
-                "Workspace Analysis"
-            ),
-            body
-        )
+    output_path = write_report(
+        "workspace_analysis",
+        task.get(
+            "title",
+            "Workspace Analysis"
+        ),
+        body
+    )
 
     return {
 
@@ -331,14 +310,16 @@ def run_business_validation(
     task: dict[str, Any]
 ) -> dict[str, Any]:
     """
-    事業検証用の実ファイルを生成。
+    事業検証用の実ファイルを生成する。
     """
 
-    summary =
+    summary = (
         workspace_summary()
+    )
 
     body = (
         "## Business Validation Worksheet\n\n"
+
         f"検証対象タスク: "
         f"{task.get('title', '')}\n\n"
 
@@ -359,15 +340,14 @@ def run_business_validation(
         "- 実際の利用反応\n"
     )
 
-    output_path =
-        write_report(
-            "business_validation",
-            task.get(
-                "title",
-                "Business Validation"
-            ),
-            body
-        )
+    output_path = write_report(
+        "business_validation",
+        task.get(
+            "title",
+            "Business Validation"
+        ),
+        body
+    )
 
     return {
 
@@ -394,29 +374,27 @@ def run_risk_scan(
 ) -> dict[str, Any]:
     """
     Workspaceをスキャンして、
-    危険そうな名前のファイル候補をレポート。
+    注意候補をレポートする。
     """
 
-    files =
-        workspace_files()
+    files = workspace_files()
 
-    suspicious_names = []
+    suspicious_names: list[str] = []
 
     for path in files:
 
-        name =
+        name = (
             path.name.lower()
+        )
 
         if any(
-            keyword
-            in name
-            for keyword
-            in (
+            keyword in name
+            for keyword in (
                 ".env",
                 "password",
                 "secret",
                 "token",
-                "private"
+                "private",
             )
         ):
 
@@ -454,15 +432,14 @@ def run_risk_scan(
             "- 自動検出された注意候補はありません。\n"
         )
 
-    output_path =
-        write_report(
-            "risk_scan",
-            task.get(
-                "title",
-                "Risk Scan"
-            ),
-            body
-        )
+    output_path = write_report(
+        "risk_scan",
+        task.get(
+            "title",
+            "Risk Scan"
+        ),
+        body
+    )
 
     return {
 
@@ -498,28 +475,27 @@ def execute_task(
 ) -> dict[str, Any]:
     """
     タスク内容に応じて、
-    許可されたローカル処理を選択する。
+    定義済みのローカル処理を選択する。
     """
 
-    title =
+    title = str(
         task.get(
             "title",
             ""
         )
+    )
 
     # ---------------------------------------------
     # Risk
     # ---------------------------------------------
 
     if any(
-        keyword
-        in title
-        for keyword
-        in (
+        keyword in title
+        for keyword in (
             "リスク",
             "危険",
             "安全",
-            "法務"
+            "法務",
         )
     ):
 
@@ -532,16 +508,14 @@ def execute_task(
     # ---------------------------------------------
 
     if any(
-        keyword
-        in title
-        for keyword
-        in (
+        keyword in title
+        for keyword in (
             "事業",
             "市場",
             "検証",
             "顧客",
             "サービス",
-            "商品"
+            "商品",
         )
     ):
 
@@ -580,10 +554,9 @@ class ExecutorHandler(
         payload: dict[str, Any]
     ) -> None:
 
-        body =
-            json_bytes(
-                payload
-            )
+        body = json_bytes(
+            payload
+        )
 
         self.send_response(
             status
@@ -643,10 +616,11 @@ class ExecutorHandler(
         self
     ) -> None:
 
-        path =
+        path = (
             urlparse(
                 self.path
             ).path
+        )
 
         if (
             path ==
@@ -695,10 +669,11 @@ class ExecutorHandler(
         self
     ) -> None:
 
-        path =
+        path = (
             urlparse(
                 self.path
             ).path
+        )
 
         if (
             path !=
@@ -722,30 +697,28 @@ class ExecutorHandler(
 
         try:
 
-            length =
-                int(
-                    self.headers.get(
-                        "Content-Length",
-                        "0"
-                    )
+            length = int(
+                self.headers.get(
+                    "Content-Length",
+                    "0"
                 )
+            )
 
-            raw =
+            raw = (
                 self.rfile.read(
                     length
                 )
+            )
 
-            request =
-                json.loads(
-                    raw.decode(
-                        "utf-8"
-                    )
+            request = json.loads(
+                raw.decode(
+                    "utf-8"
                 )
+            )
 
-            task =
-                request.get(
-                    "task"
-                )
+            task = request.get(
+                "task"
+            )
 
             if not isinstance(
                 task,
@@ -756,10 +729,11 @@ class ExecutorHandler(
                     "task object is required"
                 )
 
-            result =
+            result = (
                 execute_task(
                     task
                 )
+            )
 
             self._send_json(
 
@@ -816,7 +790,7 @@ class ExecutorHandler(
 
 def main() -> None:
 
-    server =
+    server = (
         ThreadingHTTPServer(
             (
                 HOST,
@@ -824,10 +798,10 @@ def main() -> None:
             ),
             ExecutorHandler
         )
+    )
 
     print(
-        "AI Company Core "
-        "Local Executor"
+        "AI Company Core Local Executor"
     )
 
     print(
@@ -847,6 +821,10 @@ def main() -> None:
 
     print(
         "任意のシェルコマンドは実行しません。"
+    )
+
+    print(
+        "停止する場合は Ctrl+C を押してください。"
     )
 
     try:

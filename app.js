@@ -12,7 +12,7 @@ const savedTasks = localStorage.getItem("aiCompanyTasks");
 let tasks = savedTasks ? JSON.parse(savedTasks) : [];
 
 /*
-  以前のタスクを新しい形式へ変換
+  既存データを新しい形式に合わせる
 */
 tasks = tasks.map(function (task) {
   let taskStatus = task.status;
@@ -27,10 +27,14 @@ tasks = tasks.map(function (task) {
     status: taskStatus,
     runCount: task.runCount || 0,
     lastRunAt: task.lastRunAt || null,
-    result: task.result || ""
+    result: task.result || "",
+    executor: task.executor || "local"
   };
 });
 
+/*
+  優先度選択
+*/
 const prioritySelect = document.createElement("select");
 
 prioritySelect.innerHTML = `
@@ -45,6 +49,9 @@ prioritySelect.style.padding = "10px";
 
 taskInput.insertAdjacentElement("afterend", prioritySelect);
 
+/*
+  基本動作テスト
+*/
 runButton.addEventListener("click", function () {
   const inputText = userInput.value.trim();
 
@@ -59,6 +66,9 @@ runButton.addEventListener("click", function () {
   }
 });
 
+/*
+  タスク保存
+*/
 function saveTasks() {
   localStorage.setItem(
     "aiCompanyTasks",
@@ -66,6 +76,9 @@ function saveTasks() {
   );
 }
 
+/*
+  優先度
+*/
 function getPriorityValue(priority) {
   if (priority === "高") {
     return 1;
@@ -78,6 +91,9 @@ function getPriorityValue(priority) {
   return 3;
 }
 
+/*
+  状態
+*/
 function getStatusValue(taskStatus) {
   if (taskStatus === "pending") {
     return 1;
@@ -102,16 +118,42 @@ function getStatusText(taskStatus) {
   return "";
 }
 
+/*
+  実行日時
+*/
 function formatRunTime(dateString) {
   if (!dateString) {
     return "まだ実行されていません";
   }
 
-  const date = new Date(dateString);
-
-  return date.toLocaleString("ja-JP");
+  return new Date(dateString).toLocaleString("ja-JP");
 }
 
+/*
+  --------------------------------
+  Local Executor
+  --------------------------------
+
+  今はテスト用のローカル実行器。
+  外部APIは使用しない。
+*/
+function executeTaskLocally(task) {
+  return new Promise(function (resolve) {
+    setTimeout(function () {
+      resolve({
+        success: true,
+        executor: "local",
+        result:
+          "ローカル実行を受け付けました：" +
+          task.text
+      });
+    }, 300);
+  });
+}
+
+/*
+  タスク一覧表示
+*/
 function renderTasks() {
   taskList.replaceChildren();
 
@@ -160,6 +202,17 @@ function renderTasks() {
         "実行結果：まだありません";
     }
 
+    const executorText = document.createElement("small");
+
+    executorText.textContent =
+      "実行方式：" +
+      (task.executor === "local"
+        ? "Local Executor"
+        : task.executor);
+
+    /*
+      編集
+    */
     const editButton = document.createElement("button");
     editButton.textContent = "編集";
     editButton.type = "button";
@@ -191,13 +244,16 @@ function renderTasks() {
         "タスクを編集しました";
     });
 
+    /*
+      実行
+    */
     const actionButton = document.createElement("button");
     actionButton.type = "button";
 
     if (task.status === "pending") {
       actionButton.textContent = "実行";
 
-      actionButton.addEventListener("click", function () {
+      actionButton.addEventListener("click", async function () {
         task.status = "running";
         task.runCount += 1;
         task.lastRunAt = new Date().toISOString();
@@ -206,62 +262,63 @@ function renderTasks() {
         renderTasks();
 
         status.textContent =
-          "タスクを実行中にしました";
+          "ローカル実行を開始しました";
 
         result.textContent =
           "実行中：" + task.text;
-      });
-    } else if (task.status === "running") {
-      actionButton.textContent = "完了";
 
-      actionButton.addEventListener("click", function () {
-        const taskResult = window.prompt(
-          "このタスクの実行結果を入力してください",
-          task.result
-        );
+        const execution =
+          await executeTaskLocally(task);
 
-        if (taskResult === null) {
-          return;
-        }
+        if (execution.success) {
+          task.status = "completed";
+          task.executor = execution.executor;
+          task.result = execution.result;
 
-        const trimmedResult = taskResult.trim();
+          saveTasks();
+          renderTasks();
 
-        if (trimmedResult === "") {
           status.textContent =
-            "実行結果を入力してください";
-          return;
+            "ローカル実行が完了しました";
+
+          result.textContent =
+            execution.result;
+        } else {
+          task.status = "pending";
+
+          saveTasks();
+          renderTasks();
+
+          status.textContent =
+            "タスクの実行に失敗しました";
         }
-
-        task.result = trimmedResult;
-        task.status = "completed";
-
-        saveTasks();
-        renderTasks();
-
-        status.textContent =
-          "タスクを完了にしました";
-
-        result.textContent =
-          "完了：" + task.text;
       });
     } else {
       actionButton.textContent =
-        "未完了に戻す";
+        task.status === "running"
+          ? "完了"
+          : "未完了に戻す";
 
       actionButton.addEventListener("click", function () {
-        task.status = "pending";
+        if (task.status === "running") {
+          task.status = "completed";
+        } else {
+          task.status = "pending";
+        }
 
         saveTasks();
         renderTasks();
 
         status.textContent =
-          "タスクを未完了に戻しました";
-
-        result.textContent =
-          "未完了：" + task.text;
+          task.status === "completed"
+            ? "タスクを完了にしました"
+            : "タスクを未完了に戻しました";
       });
     }
 
+    /*
+      削除
+    */
     const deleteButton = document.createElement("button");
     deleteButton.textContent = "削除";
     deleteButton.type = "button";
@@ -283,6 +340,7 @@ function renderTasks() {
     item.appendChild(taskText);
     item.appendChild(historyText);
     item.appendChild(taskResult);
+    item.appendChild(executorText);
     item.appendChild(editButton);
     item.appendChild(actionButton);
     item.appendChild(deleteButton);
@@ -294,6 +352,9 @@ function renderTasks() {
     "登録数：" + tasks.length + "件";
 }
 
+/*
+  タスク登録
+*/
 addTaskButton.addEventListener("click", function () {
   const taskText = taskInput.value.trim();
 
@@ -309,7 +370,8 @@ addTaskButton.addEventListener("click", function () {
     status: "pending",
     runCount: 0,
     lastRunAt: null,
-    result: ""
+    result: "",
+    executor: "local"
   });
 
   saveTasks();

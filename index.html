@@ -7,17 +7,61 @@
   <link rel="stylesheet" href="./style.css">
   <script src="./app.js" defer></script>
 </head>
+
 <body>
   <main class="container">
 
-    <h1>AI Company Core 2.0</h1>
-    <p class="subtitle">AI Company Core Prototype</p>
+    <header class="hero">
+      <h1>AI Company Core 2.0</h1>
+      <p class="subtitle">
+        AI Company Core Prototype
+      </p>
+    </header>
 
-    <!-- 動作テスト -->
+
+    <!-- =========================
+         CORE STATUS
+    ========================== -->
     <section class="panel">
-      <p id="status" class="status">待機中</p>
+      <h2>Core Status</h2>
 
-      <label for="userInput">動作テスト入力</label>
+      <div class="status-grid">
+
+        <div class="status-card">
+          <span class="status-label">System</span>
+          <strong id="systemStatus">正常稼働</strong>
+        </div>
+
+        <div class="status-card">
+          <span class="status-label">CEO</span>
+          <strong id="ceoStatus">待機中</strong>
+        </div>
+
+        <div class="status-card">
+          <span class="status-label">Executor</span>
+          <strong id="executorStatus">Local Executor</strong>
+        </div>
+
+        <div class="status-card">
+          <span class="status-label">外部AI API</span>
+          <strong id="apiStatus">使用しない</strong>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- =========================
+         BASIC TEST
+    ========================== -->
+    <section class="panel">
+      <p id="status" class="status">
+        待機中
+      </p>
+
+      <label for="userInput">
+        動作テスト入力
+      </label>
 
       <input
         id="userInput"
@@ -31,22 +75,39 @@
 
       <div class="result-area">
         <h2>実行結果</h2>
-        <p id="result">まだ実行されていません。</p>
+
+        <p id="result">
+          まだ実行されていません。
+        </p>
       </div>
     </section>
 
 
-    <!-- タスク管理 -->
-    <section class="panel task-panel">
-      <h2>タスク管理</h2>
+    <!-- =========================
+         TASK MANAGEMENT
+    ========================== -->
+    <section class="panel">
+      <h2>Task Core</h2>
 
-      <label for="taskInput">新しいタスク</label>
+      <label for="taskInput">
+        新しいタスク
+      </label>
 
       <input
         id="taskInput"
         type="text"
         placeholder="例：商品案を3つ考える"
       >
+
+      <label for="taskPriority">
+        優先度
+      </label>
+
+      <select id="taskPriority">
+        <option value="高">高</option>
+        <option value="通常" selected>通常</option>
+        <option value="低">低</option>
+      </select>
 
       <button id="addTaskButton" type="button">
         タスクを登録
@@ -55,18 +116,22 @@
       <div class="result-area">
         <h2>登録済みタスク</h2>
 
-        <p id="taskCount">登録数：0件</p>
+        <p id="taskCount">
+          登録数：0件
+        </p>
 
         <ul id="taskList"></ul>
       </div>
     </section>
 
 
-    <!-- Founder Room -->
-    <section class="panel founder-panel">
+    <!-- =========================
+         FOUNDER ROOM
+    ========================== -->
+    <section class="panel">
       <h2>Founder Room</h2>
 
-      <p>
+      <p class="description">
         会社への提案・質問・相談を入力してください。
       </p>
 
@@ -95,25 +160,41 @@
     </section>
 
 
-    <!-- CEO Council -->
+    <!-- =========================
+         CEO COUNCIL
+    ========================== -->
     <section class="panel">
       <h2>CEO Council</h2>
 
-      <p>
+      <p class="description">
         Founderから提出された議題をCEOが受け取り、
         必要な部署へ協議を回します。
       </p>
 
       <div class="result-area">
+
         <h2>CEO協議案件</h2>
 
         <ul id="ceoCouncilList"></ul>
+
       </div>
     </section>
 
 
+    <!-- =========================
+         DEPARTMENT STATUS
+    ========================== -->
+    <section class="panel">
+      <h2>Internal Departments</h2>
+
+      <div id="departmentStatus"></div>
+    </section>
+
+
     <footer>
-      <p>AI Company Core 2.0 | Prototype</p>
+      <p>
+        AI Company Core 2.0 | Prototype
+      </p>
     </footer>
 
   </main>

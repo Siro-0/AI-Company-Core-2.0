@@ -16,7 +16,7 @@
     <section class="panel">
       <p id="status" class="status">待機中</p>
 
-      <label for="userInput">テスト入力</label>
+      <label for="userInput">動作テスト入力</label>
       <input
         id="userInput"
         type="text"
@@ -30,6 +30,27 @@
       <div class="result-area">
         <h2>実行結果</h2>
         <p id="result">まだ実行されていません。</p>
+      </div>
+    </section>
+
+    <section class="panel task-panel">
+      <h2>タスク管理</h2>
+
+      <label for="taskInput">新しいタスク</label>
+      <input
+        id="taskInput"
+        type="text"
+        placeholder="例：商品案を3つ考える"
+      >
+
+      <button id="addTaskButton" type="button">
+        タスクを登録
+      </button>
+
+      <div class="result-area">
+        <h2>登録済みタスク</h2>
+        <p id="taskCount">登録数：0件</p>
+        <ul id="taskList"></ul>
       </div>
     </section>
 

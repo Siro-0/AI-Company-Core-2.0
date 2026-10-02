@@ -12,7 +12,7 @@
 
     <header>
       <h1>AI Company Core 2.0</h1>
-      <p>AI Company Core Prototype</p>
+      <p>AI Company Core Prototype / Company Core 3.0</p>
     </header>
 
     <!-- =========================
@@ -106,7 +106,7 @@
     </section>
 
     <!-- =========================
-         Company Engine Log
+         Engine Log
     ========================== -->
     <section class="panel">
       <h2>Company Engine Log</h2>
@@ -117,13 +117,65 @@
     </section>
 
     <!-- =========================
+         Business Discovery
+    ========================== -->
+    <section class="panel">
+      <h2>Business Discovery</h2>
+
+      <p class="muted">
+        会社自身が発見した事業・検証候補です。
+      </p>
+
+      <div class="business-controls">
+        <button id="discoverBusinessButton">
+          事業機会を探索
+        </button>
+      </div>
+
+      <div id="businessList" class="business-list">
+        まだ事業候補はありません。
+      </div>
+    </section>
+
+    <!-- =========================
+         Human Gate
+    ========================== -->
+    <section class="panel">
+      <h2>Human Gate</h2>
+
+      <p class="muted">
+        契約・支払い・公開など、人間の承認が必要な操作を管理します。
+      </p>
+
+      <div id="humanGateList" class="gate-list">
+        現在、承認待ちはありません。
+      </div>
+    </section>
+
+    <!-- =========================
+         Self Improvement
+    ========================== -->
+    <section class="panel">
+      <h2>Self Improvement</h2>
+
+      <p class="muted">
+        会社自身が発見した改善案です。現時点ではコードを自動変更せず、
+        改善候補として蓄積します。
+      </p>
+
+      <div id="improvementList" class="improvement-list">
+        まだ改善候補はありません。
+      </div>
+    </section>
+
+    <!-- =========================
          Company Memory
     ========================== -->
     <section class="panel">
       <h2>Company Memory</h2>
 
       <p class="muted">
-        会社が実行・評価によって蓄積した知識です。
+        会社が実行・評価・失敗・改善から蓄積した知識です。
       </p>
 
       <div id="companyMemory" class="memory-area">
@@ -232,8 +284,7 @@
       <h2>CEO Council</h2>
 
       <p>
-        Founder案件や会社自身の戦略案を
-        必要な部署へ協議します。
+        Founder案件や会社自身の戦略案を必要な部署へ協議します。
       </p>
 
       <h3>CEO協議案件</h3>
@@ -253,30 +304,22 @@
 
         <div class="department-card">
           <h3>企画</h3>
-          <p>
-            事業性・顧客価値・方向性を確認
-          </p>
+          <p>事業性・顧客価値・方向性を確認</p>
         </div>
 
         <div class="department-card">
           <h3>技術</h3>
-          <p>
-            実装可能性・開発負荷・技術課題を確認
-          </p>
+          <p>実装可能性・開発負荷・技術課題を確認</p>
         </div>
 
         <div class="department-card">
           <h3>財務</h3>
-          <p>
-            収益性・コスト・資金面を確認
-          </p>
+          <p>収益性・コスト・資金面を確認</p>
         </div>
 
         <div class="department-card">
           <h3>リスク管理</h3>
-          <p>
-            安全・法務・規約・運営リスクを確認
-          </p>
+          <p>安全・法務・規約・運営リスクを確認</p>
         </div>
 
       </div>

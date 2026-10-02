@@ -101,7 +101,7 @@ button:active {
 }
 
 button:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
@@ -131,10 +131,6 @@ button:disabled {
   margin-bottom: 6px;
 }
 
-.status-card strong {
-  display: block;
-}
-
 ul {
   padding-left: 20px;
 }
@@ -161,15 +157,11 @@ li button {
 }
 
 .council-card {
+  list-style: none;
   border: 1px solid #e1e5ea;
   border-radius: 10px;
   padding: 16px;
   margin-bottom: 14px;
-  list-style: none;
-}
-
-.council-card button {
-  margin-top: 10px;
 }
 
 .department-card {
@@ -196,6 +188,17 @@ li button {
   border: 1px solid #e2e6eb;
 }
 
+.engine-controls {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.engine-controls button {
+  margin-top: 0;
+}
+
 footer {
   text-align: center;
   padding: 20px 0;
@@ -210,6 +213,10 @@ footer {
 
   .panel {
     padding: 18px;
+  }
+
+  .engine-controls {
+    grid-template-columns: 1fr;
   }
 }
 

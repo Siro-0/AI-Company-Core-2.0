@@ -4,208 +4,292 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI Company Core 2.0</title>
-  <link rel="stylesheet" href="./style.css">
-  <script src="./app.js" defer></script>
+  <link rel="stylesheet" href="style.css">
 </head>
-<body>
-  <main class="container">
 
-    <header class="hero">
+<body>
+  <div class="container">
+
+    <header>
       <h1>AI Company Core 2.0</h1>
-      <p class="subtitle">AI Company Core Prototype</p>
+      <p>AI Company Core Prototype</p>
     </header>
 
+    <!-- =========================
+         Company Engine
+    ========================== -->
     <section class="panel">
       <h2>Company Engine</h2>
 
       <div class="status-grid">
-        <div class="status-card">
-          <span class="status-label">System</span>
+        <div>
+          <span>System</span>
           <strong id="systemStatus">正常稼働</strong>
         </div>
 
-        <div class="status-card">
-          <span class="status-label">CEO</span>
-          <strong id="ceoStatus">待機中</strong>
+        <div>
+          <span>CEO</span>
+          <strong id="ceoStatus">観測中</strong>
         </div>
 
-        <div class="status-card">
-          <span class="status-label">Engine</span>
-          <strong id="engineStatus">停止中</strong>
+        <div>
+          <span>Engine</span>
+          <strong id="engineStatus">待機中</strong>
         </div>
 
-        <div class="status-card">
-          <span class="status-label">Executor</span>
+        <div>
+          <span>Executor</span>
           <strong id="executorStatus">Local Executor</strong>
         </div>
 
-        <div class="status-card">
-          <span class="status-label">外部AI API</span>
+        <div>
+          <span>外部AI API</span>
           <strong id="apiStatus">使用しない</strong>
+        </div>
+
+        <div>
+          <span>運転ペース</span>
+          <strong id="paceStatus">通常</strong>
         </div>
       </div>
 
-      <label for="companyGoal">会社の現在目標</label>
-
-      <textarea
-        id="companyGoal"
-        rows="3"
-        placeholder="例：安全に自社内で収益化できる事業を探す"
-      ></textarea>
-
-      <label for="companyMode">会社モード</label>
-
-      <select id="companyMode">
-        <option value="守り">守り</option>
-        <option value="通常" selected>通常</option>
-        <option value="攻め">攻め</option>
-      </select>
-
       <div class="engine-controls">
-        <button id="runCycleButton" type="button">
-          1サイクル実行
-        </button>
 
-        <button id="startEngineButton" type="button">
-          自律運転開始
-        </button>
+        <label for="companyGoal">
+          会社の現在目標
+        </label>
 
-        <button id="stopEngineButton" type="button" disabled>
-          自律運転停止
-        </button>
+        <input
+          id="companyGoal"
+          type="text"
+          placeholder="会社が現在目指す目標"
+        >
+
+        <label for="companyMode">
+          会社モード
+        </label>
+
+        <select id="companyMode">
+          <option value="defense">守り</option>
+          <option value="normal" selected>通常</option>
+          <option value="offense">攻め</option>
+        </select>
+
+        <div class="button-row">
+          <button id="runCycleButton">
+            1サイクル実行
+          </button>
+
+          <button id="startEngineButton">
+            自律運転開始
+          </button>
+
+          <button id="stopEngineButton">
+            自律運転停止
+          </button>
+        </div>
       </div>
 
-      <div class="result-area">
-        <h2>Company Engine Log</h2>
+      <div class="engine-summary">
+        <strong>CEO現在方針</strong>
+        <div id="engineDecision">
+          まだ戦略判断はありません。
+        </div>
+      </div>
 
-        <p id="engineSummary">
-          まだサイクルは実行されていません。
-        </p>
-
-        <ul id="engineLog"></ul>
+      <div class="engine-summary">
+        <strong>現在の会社状態</strong>
+        <div id="engineSummary">
+          会社は待機しています。
+        </div>
       </div>
     </section>
 
+    <!-- =========================
+         Company Engine Log
+    ========================== -->
     <section class="panel">
-      <p id="status" class="status">待機中</p>
+      <h2>Company Engine Log</h2>
 
-      <label for="userInput">
-        動作テスト入力
-      </label>
-
-      <input
-        id="userInput"
-        type="text"
-        placeholder="文字を入力してください"
-      >
-
-      <button id="runButton" type="button">
-        動作テスト
-      </button>
-
-      <div class="result-area">
-        <h2>実行結果</h2>
-
-        <p id="result">
-          まだ実行されていません。
-        </p>
+      <div id="engineLog" class="log-area">
+        まだサイクルは実行されていません。
       </div>
     </section>
 
+    <!-- =========================
+         Company Memory
+    ========================== -->
+    <section class="panel">
+      <h2>Company Memory</h2>
+
+      <p class="muted">
+        会社が実行・評価によって蓄積した知識です。
+      </p>
+
+      <div id="companyMemory" class="memory-area">
+        まだ学習記録はありません。
+      </div>
+    </section>
+
+    <!-- =========================
+         Basic Test
+    ========================== -->
+    <section class="panel">
+      <h2>Basic Test</h2>
+
+      <div class="form-row">
+        <input
+          id="testInput"
+          type="text"
+          value="動作テスト"
+          placeholder="テスト入力"
+        >
+
+        <button id="testButton">
+          動作テスト
+        </button>
+      </div>
+
+      <div class="status-box">
+        待機中
+      </div>
+
+      <h3>実行結果</h3>
+
+      <div id="testResult" class="result-box">
+        まだ実行されていません。
+      </div>
+    </section>
+
+    <!-- =========================
+         Task Core
+    ========================== -->
     <section class="panel">
       <h2>Task Core</h2>
 
-      <label for="taskInput">
-        新しいタスク
-      </label>
+      <div class="form-row">
+        <input
+          id="taskInput"
+          type="text"
+          placeholder="新しいタスク"
+        >
 
-      <input
-        id="taskInput"
-        type="text"
-        placeholder="例：商品案を3つ考える"
-      >
+        <select id="taskPriority">
+          <option value="high">高</option>
+          <option value="normal" selected>通常</option>
+          <option value="low">低</option>
+        </select>
 
-      <label for="taskPriority">
-        優先度
-      </label>
+        <button id="addTaskButton">
+          タスクを登録
+        </button>
+      </div>
 
-      <select id="taskPriority">
-        <option value="高">高</option>
-        <option value="通常" selected>通常</option>
-        <option value="低">低</option>
-      </select>
+      <h3>登録済みタスク</h3>
 
-      <button id="addTaskButton" type="button">
-        タスクを登録
-      </button>
+      <div id="taskCount">
+        登録数：0件
+      </div>
 
-      <div class="result-area">
-        <h2>登録済みタスク</h2>
-
-        <p id="taskCount">
-          登録数：0件
-        </p>
-
-        <ul id="taskList"></ul>
+      <div id="taskList" class="task-list">
+        タスクはありません。
       </div>
     </section>
 
+    <!-- =========================
+         Founder Room
+    ========================== -->
     <section class="panel">
       <h2>Founder Room</h2>
 
-      <p class="description">
+      <p>
         会社への提案・質問・相談を入力してください。
       </p>
 
-      <label for="founderInput">
-        会社への相談
-      </label>
+      <div class="form-row">
+        <input
+          id="founderInput"
+          type="text"
+          placeholder="会社への相談"
+        >
 
-      <textarea
-        id="founderInput"
-        rows="5"
-        placeholder="例：新しい事業としてゲームを作るのは面白くない？"
-      ></textarea>
+        <button id="submitFounderButton">
+          会社に相談する
+        </button>
+      </div>
 
-      <button
-        id="founderSubmitButton"
-        type="button"
-      >
-        会社に相談する
-      </button>
+      <h3>協議記録</h3>
 
-      <div class="result-area">
-        <h2>協議記録</h2>
-
-        <ul id="founderLog"></ul>
+      <div id="founderRecords" class="record-list">
+        まだ協議記録はありません。
       </div>
     </section>
 
+    <!-- =========================
+         CEO Council
+    ========================== -->
     <section class="panel">
       <h2>CEO Council</h2>
 
-      <p class="description">
-        Founderから提出された議題をCEOが受け取り、
-        必要な部署へ協議を回します。
+      <p>
+        Founder案件や会社自身の戦略案を
+        必要な部署へ協議します。
       </p>
 
-      <div class="result-area">
-        <h2>CEO協議案件</h2>
+      <h3>CEO協議案件</h3>
 
-        <ul id="ceoCouncilList"></ul>
+      <div id="councilCases">
+        まだ協議案件はありません。
       </div>
     </section>
 
+    <!-- =========================
+         Internal Departments
+    ========================== -->
     <section class="panel">
       <h2>Internal Departments</h2>
 
-      <div id="departmentStatus"></div>
+      <div class="department-grid">
+
+        <div class="department-card">
+          <h3>企画</h3>
+          <p>
+            事業性・顧客価値・方向性を確認
+          </p>
+        </div>
+
+        <div class="department-card">
+          <h3>技術</h3>
+          <p>
+            実装可能性・開発負荷・技術課題を確認
+          </p>
+        </div>
+
+        <div class="department-card">
+          <h3>財務</h3>
+          <p>
+            収益性・コスト・資金面を確認
+          </p>
+        </div>
+
+        <div class="department-card">
+          <h3>リスク管理</h3>
+          <p>
+            安全・法務・規約・運営リスクを確認
+          </p>
+        </div>
+
+      </div>
+
+      <h3>現在稼働する部署</h3>
+
+      <div id="activeDepartmentList" class="active-departments">
+        企画・技術・財務・リスク管理
+      </div>
     </section>
 
-    <footer>
-      <p>AI Company Core 2.0 | Prototype</p>
-    </footer>
+  </div>
 
-  </main>
+  <script src="app.js"></script>
 </body>
 </html>

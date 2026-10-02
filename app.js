@@ -8,7 +8,8 @@ const addTaskButton = document.getElementById("addTaskButton");
 const taskList = document.getElementById("taskList");
 const taskCount = document.getElementById("taskCount");
 
-let tasks = [];
+const savedTasks = localStorage.getItem("aiCompanyTasks");
+let tasks = savedTasks ? JSON.parse(savedTasks) : [];
 
 runButton.addEventListener("click", function () {
   const inputText = userInput.value.trim();
@@ -22,6 +23,10 @@ runButton.addEventListener("click", function () {
   }
 });
 
+function saveTasks() {
+  localStorage.setItem("aiCompanyTasks", JSON.stringify(tasks));
+}
+
 function renderTasks() {
   taskList.replaceChildren();
 
@@ -29,19 +34,22 @@ function renderTasks() {
     const item = document.createElement("li");
 
     const taskText = document.createElement("span");
-    taskText.textContent =
-      (index + 1) + ". " + task.text;
+    taskText.textContent = (index + 1) + ". " + task.text;
 
     if (task.completed) {
       taskText.textContent += "（完了）";
     }
 
     const completeButton = document.createElement("button");
-    completeButton.textContent = task.completed ? "未完了に戻す" : "完了";
+    completeButton.textContent = task.completed
+      ? "未完了に戻す"
+      : "完了";
     completeButton.type = "button";
 
     completeButton.addEventListener("click", function () {
       task.completed = !task.completed;
+
+      saveTasks();
       renderTasks();
 
       if (task.completed) {
@@ -57,7 +65,10 @@ function renderTasks() {
 
     deleteButton.addEventListener("click", function () {
       tasks.splice(index, 1);
+
+      saveTasks();
       renderTasks();
+
       status.textContent = "タスクを削除しました";
     });
 
@@ -84,9 +95,13 @@ addTaskButton.addEventListener("click", function () {
     completed: false
   });
 
+  saveTasks();
+
   taskInput.value = "";
 
   renderTasks();
 
   status.textContent = "タスクを登録しました";
 });
+
+renderTasks();

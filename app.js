@@ -317,7 +317,7 @@ const founderRecords =
     "founderRecords"
   );
 
-const councilCases =
+const councilCasesEl =
   document.getElementById(
     "councilCases"
   );
@@ -3563,14 +3563,14 @@ function renderCouncil() {
     councilCases.length ===
     0
   ) {
-    councilCases.textContent =
-      "まだ協議案件はありません。";
+　　councilCasesEl.textContent =
+ 　　 "まだ協議案件はありません。";
 
     return;
   }
 
-  councilCases.innerHTML =
-    councilCases
+　　　councilCasesEl.innerHTML =
+  　　　councilCases
       .slice(
         0,
         20

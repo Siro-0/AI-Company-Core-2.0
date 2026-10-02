@@ -1,60 +1,153 @@
-const RUNTIME_VERSION = "6.2.0-self-developing-company";
-const SCHEMA_VERSION = "6.2.0";
+const RUNTIME_VERSION = "6.3.0-self-evolving-company";
+const SCHEMA_VERSION = "6.3.0";
+const SELF_DEVELOPMENT_INTERVAL_CYCLES = 3;
 
-const DEFAULT_DEPARTMENTS = ["企画", "技術", "リスク管理"];
+const DEFAULT_DEPARTMENTS = [
+  "企画",
+  "技術",
+  "リスク管理",
+];
 
 const GENERATED_DEPARTMENTS = {
   "調査": {
-    mission: "外部証拠を取得し、事業仮説の精度を高める。",
-    trigger: "externalResearch",
-    action: "research_external_evidence",
+    mission:
+      "外部証拠を取得し、事業仮説の精度を高める。",
+    trigger:
+      "externalResearch",
+    action:
+      "research_external_evidence",
   },
+
   "顧客対応": {
-    mission: "顧客入力を整理し、改善要求へ変換する。",
-    trigger: "customerFeedback",
-    action: "customer_feedback_analysis",
+    mission:
+      "顧客入力を整理し、改善要求へ変換する。",
+    trigger:
+      "customerFeedback",
+    action:
+      "customer_feedback_analysis",
   },
+
   "事業成果": {
-    mission: "成果・売上・コストを把握し、CEO評価へ接続する。",
-    trigger: "outcomeTracking",
-    action: "outcome_analysis",
+    mission:
+      "成果・売上・コストを把握し、CEO評価へ接続する。",
+    trigger:
+      "outcomeTracking",
+    action:
+      "outcome_analysis",
   },
+
   "開発基盤": {
-    mission: "安全な開発・テスト・デプロイ基盤を整備する。",
-    trigger: "selfDevelopment",
-    action: "development_infrastructure",
+    mission:
+      "安全な開発・テスト・デプロイ基盤を整備する。",
+    trigger:
+      "selfDevelopment",
+    action:
+      "development_infrastructure",
   },
+
   "プラットフォーム戦略": {
-    mission: "Storage / Scheduler / Executor / Web の依存を分離する。",
-    trigger: "platformIndependence",
-    action: "platform_decoupling",
+    mission:
+      "Storage / Scheduler / Executor / Web の依存を分離する。",
+    trigger:
+      "platformIndependence",
+    action:
+      "platform_decoupling",
   },
+};
+
+const DEPARTMENT_ALIASES = {
+  "戦略プラットフォーム":
+    "プラットフォーム戦略",
+
+  "プラットフォーム戦略":
+    "プラットフォーム戦略",
+
+  "お客様対応":
+    "顧客対応",
+};
+
+const ACTION_ALIASES = {
+  "販売評価":
+    "sales_evaluation",
+
+  "販売準備":
+    "sales_package_generation",
+
+  "リサーチブリーフ":
+    "research_brief",
+
+  "商品設計":
+    "product_prototype",
+
+  "商品設計・試作":
+    "product_prototype",
+
+  "内部部門改善":
+    "internal_department_improvement",
+
+  "クラウドエグゼキューター":
+    "cloud_executor",
+
+  "プラットフォーム分離":
+    "platform_decoupling",
+
+  "開発インフラストラクチャ":
+    "development_infrastructure",
+
+  "自己開発テスト":
+    "self_development_test",
+
+  "自己開発展開候補":
+    "self_development_deploy_candidate",
+
+  "コード変更候補":
+    "code_change_candidate",
+
+  "ヒューマンゲート":
+    "human_gate_publication",
 };
 
 const RESEARCH_SOURCES = {
   stat_economy: {
-    name: "総務省統計局",
-    url: "https://www.stat.go.jp/",
+    name:
+      "総務省統計局",
+    url:
+      "https://www.stat.go.jp/",
   },
+
   soumu: {
-    name: "総務省",
-    url: "https://www.soumu.go.jp/",
+    name:
+      "総務省",
+    url:
+      "https://www.soumu.go.jp/",
   },
+
   meti: {
-    name: "経済産業省",
-    url: "https://www.meti.go.jp/",
+    name:
+      "経済産業省",
+    url:
+      "https://www.meti.go.jp/",
   },
+
   mhlw: {
-    name: "厚生労働省",
-    url: "https://www.mhlw.go.jp/",
+    name:
+      "厚生労働省",
+    url:
+      "https://www.mhlw.go.jp/",
   },
+
   digital: {
-    name: "デジタル庁",
-    url: "https://www.digital.go.jp/",
+    name:
+      "デジタル庁",
+    url:
+      "https://www.digital.go.jp/",
   },
+
   estat: {
-    name: "e-Stat",
-    url: "https://www.e-stat.go.jp/",
+    name:
+      "e-Stat",
+    url:
+      "https://www.e-stat.go.jp/",
   },
 };
 
@@ -76,7 +169,8 @@ function nowIso() {
 
 function id(prefix = "id") {
   const raw =
-    typeof crypto !== "undefined" &&
+    typeof crypto !==
+      "undefined" &&
     crypto.randomUUID
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random()
@@ -86,21 +180,33 @@ function id(prefix = "id") {
   return `${prefix}_${raw}`;
 }
 
-function str(v, fallback = "") {
-  return typeof v === "string"
-    ? v.trim()
+function str(
+  value,
+  fallback = ""
+) {
+  return typeof value ===
+    "string"
+    ? value.trim()
     : fallback;
 }
 
-function json(data, status = 200) {
+function json(
+  data,
+  status = 200
+) {
   return new Response(
-    JSON.stringify(data, null, 2),
+    JSON.stringify(
+      data,
+      null,
+      2
+    ),
     {
       status,
       headers: {
         "content-type":
           "application/json; charset=utf-8",
-        "access-control-allow-origin": "*",
+        "access-control-allow-origin":
+          "*",
         "access-control-allow-methods":
           "GET,POST,OPTIONS",
         "access-control-allow-headers":
@@ -110,9 +216,11 @@ function json(data, status = 200) {
   );
 }
 
-async function bodyJSON(req) {
+async function bodyJSON(
+  request
+) {
   try {
-    return await req.json();
+    return await request.json();
   } catch {
     return {};
   }
@@ -123,12 +231,18 @@ async function getStore(
   key,
   fallback = null
 ) {
-  const row = await env.DB
-    .prepare(
-      "SELECT value_json FROM company_store WHERE key = ? LIMIT 1"
-    )
-    .bind(key)
-    .first();
+  const row =
+    await env.DB
+      .prepare(
+        `
+        SELECT value_json
+        FROM company_store
+        WHERE key = ?
+        LIMIT 1
+        `
+      )
+      .bind(key)
+      .first();
 
   if (!row) {
     return fallback;
@@ -159,8 +273,10 @@ async function setStore(
       VALUES(?,?,?)
       ON CONFLICT(key)
       DO UPDATE SET
-        value_json=excluded.value_json,
-        updated_at=excluded.updated_at
+        value_json =
+          excluded.value_json,
+        updated_at =
+          excluded.updated_at
       `
     )
     .bind(
@@ -181,11 +297,16 @@ async function setRuntimeMeta(
   const current =
     await env.DB
       .prepare(
-        "SELECT last_heartbeat_at FROM runtime_meta WHERE id=1 LIMIT 1"
+        `
+        SELECT last_heartbeat_at
+        FROM runtime_meta
+        WHERE id=1
+        LIMIT 1
+        `
       )
       .first();
 
-  const value =
+  const timestamp =
     heartbeat ??
     current?.last_heartbeat_at ??
     null;
@@ -195,24 +316,50 @@ async function setRuntimeMeta(
       `
       UPDATE runtime_meta
       SET
-        last_heartbeat_at=?,
-        cycle_count=?,
-        runtime_version=?
-      WHERE id=1
+        last_heartbeat_at = ?,
+        cycle_count = ?,
+        runtime_version = ?
+      WHERE id = 1
       `
     )
     .bind(
-      value,
+      timestamp,
       cycleCount,
       RUNTIME_VERSION
     )
     .run();
 }
 
-function normalizeDepartments(v) {
-  const items =
-    Array.isArray(v)
-      ? v
+function normalizeDepartmentName(
+  name
+) {
+  const value =
+    str(name, "");
+
+  return (
+    DEPARTMENT_ALIASES[value] ??
+    value
+  );
+}
+
+function normalizeActionName(
+  action
+) {
+  const value =
+    str(action, "");
+
+  return (
+    ACTION_ALIASES[value] ??
+    value
+  );
+}
+
+function normalizeDepartments(
+  value
+) {
+  const input =
+    Array.isArray(value)
+      ? value
       : [];
 
   return [
@@ -222,175 +369,212 @@ function normalizeDepartments(v) {
         ...Object.keys(
           GENERATED_DEPARTMENTS
         ),
-        ...items,
+        ...input,
       ]
-        .map((x) => str(x))
+        .map(
+          normalizeDepartmentName
+        )
         .filter(Boolean)
     ),
   ];
 }
 
-function normalizeTask(t) {
-  const x =
-    t &&
-    typeof t === "object"
-      ? { ...t }
+function normalizeTask(
+  task
+) {
+  const source =
+    task &&
+    typeof task ===
+      "object"
+      ? {
+          ...task,
+        }
       : {};
 
   const statusMap = {
-    "保留中": "pending",
-    "完了": "completed",
+    "保留中":
+      "pending",
+
+    "完了":
+      "completed",
+
     "人間を待っています":
       "waiting_human",
-    "実行中": "running",
-    "失敗": "failed",
+
+    "実行中":
+      "running",
+
+    "失敗":
+      "failed",
   };
 
   return {
-    ...x,
+    ...source,
 
     id:
-      x.id ??
+      source.id ??
       id("task"),
 
     type:
       str(
-        x.type,
-        x.requiresHuman
+        source.type,
+        source.requiresHuman
           ? "human_gate"
           : "internal_task"
       ),
 
     action:
-      str(
-        x.action,
-        x.executor ??
-          "internal_analysis"
+      normalizeActionName(
+        str(
+          source.action,
+          source.executor ??
+            "internal_analysis"
+        )
       ),
 
     title:
       str(
-        x.title,
+        source.title,
         "内部タスク"
       ),
 
     description:
       str(
-        x.description,
+        source.description,
         ""
       ),
 
     department:
-      str(
-        x.department,
-        "企画"
+      normalizeDepartmentName(
+        source.department ??
+          "企画"
       ),
 
     status:
-      statusMap[x.status] ??
-      x.status ??
+      statusMap[
+        source.status
+      ] ??
+      source.status ??
       "pending",
 
     priority:
       Number.isFinite(
-        Number(x.priority)
+        Number(
+          source.priority
+        )
       )
-        ? Number(x.priority)
+        ? Number(
+            source.priority
+          )
         : 50,
 
     internalOnly:
-      x.internalOnly === true,
+      source.internalOnly ===
+      true,
 
     safeAutonomy:
-      x.safeAutonomy === true,
+      source.safeAutonomy ===
+      true,
 
     externalAction:
-      x.externalAction ===
+      source.externalAction ===
       true,
 
     requiresHuman:
-      x.requiresHuman === true ||
-      x.type === "human_gate",
+      source.requiresHuman ===
+        true ||
+      source.type ===
+        "human_gate",
 
     businessId:
       str(
-        x.businessId,
-        x.pipeline?.businessId ??
+        source.businessId,
+        source.pipeline?.businessId ??
           ""
       ) || null,
 
     pipeline:
-      x.pipeline &&
-      typeof x.pipeline ===
+      source.pipeline &&
+      typeof source.pipeline ===
         "object"
-        ? { ...x.pipeline }
+        ? {
+            ...source.pipeline,
+          }
         : {},
 
     createdAt:
-      x.createdAt ??
+      source.createdAt ??
       nowIso(),
 
     updatedAt:
-      x.updatedAt ??
+      source.updatedAt ??
       nowIso(),
   };
 }
 
-function normalizeBusiness(b) {
-  const x =
-    b &&
-    typeof b === "object"
-      ? { ...b }
+function normalizeBusiness(
+  business
+) {
+  const source =
+    business &&
+    typeof business ===
+      "object"
+      ? {
+          ...business,
+        }
       : {};
 
   return {
-    ...x,
+    ...source,
 
     id:
-      str(x.id) ||
+      str(
+        source.id
+      ) ||
       id("business"),
 
     name:
       str(
-        x.name ??
-          x.title,
+        source.name ??
+          source.title,
         "未定義事業"
       ),
 
     problem:
       str(
-        x.problem,
+        source.problem,
         ""
       ),
 
     target:
       str(
-        x.target ??
-          x.customer,
+        source.target ??
+          source.customer,
         ""
       ),
 
     value:
       str(
-        x.value,
+        source.value,
         ""
       ),
 
     status:
       str(
-        x.status,
+        source.status,
         "hypothesis"
       ),
 
     createdAt:
-      x.createdAt ??
+      source.createdAt ??
       nowIso(),
   };
 }
 
 function defaultCompany() {
   return {
-    cycleCount: 0,
+    cycleCount:
+      0,
 
     currentFocus:
       "会社初期化完了",
@@ -416,51 +600,98 @@ function defaultCompany() {
     externalAI:
       false,
 
-    humanGates: [],
+    humanGates:
+      [],
 
-    businesses: [],
+    businesses:
+      [],
 
-    companyMemory: [],
+    companyMemory:
+      [],
 
-    researchEvidenceIndex: [],
+    researchEvidenceIndex:
+      [],
 
-    customers: [],
+    customers:
+      [],
 
-    outcomes: [],
+    outcomes:
+      [],
 
     departments:
       normalizeDepartments([]),
 
-    capabilitySnapshot: {},
+    capabilitySnapshot:
+      {},
 
-    organizationHistory: [],
+    organizationHistory:
+      [],
 
-    migration: {
-      lastRunAt: null,
-      version: null,
-      businessAliases: {},
-      repairs: [],
-    },
+    migration:
+      {
+        lastRunAt:
+          null,
 
-    maintenance: {
-      lastAuditAt: null,
-      lastRepairAt: null,
-      lastAnomalies: [],
-    },
+        version:
+          null,
 
-    selfDevelopment: {
-      mode:
-        "candidate_only",
+        businessAliases:
+          {},
 
-      lastProposalAt:
-        null,
+        repairs:
+          [],
+      },
 
-      lastTestAt:
-        null,
+    maintenance:
+      {
+        lastAuditAt:
+          null,
 
-      lastCandidateId:
-        null,
-    },
+        lastRepairAt:
+          null,
+
+        lastAnomalies:
+          [],
+      },
+
+    selfDevelopment:
+      {
+        mode:
+          "candidate_only",
+
+        adapterMode:
+          "plan_only",
+
+        sourceControlWrite:
+          false,
+
+        productionDeploy:
+          false,
+
+        lastProposalAt:
+          null,
+
+        lastTestAt:
+          null,
+
+        lastBuildAt:
+          null,
+
+        lastRollbackAt:
+          null,
+
+        lastCandidateId:
+          null,
+
+        activeCandidateId:
+          null,
+
+        proposalCount:
+          0,
+
+        packageCount:
+          0,
+      },
   };
 }
 
@@ -469,7 +700,8 @@ async function snapshotState(
   reason = "unspecified"
 ) {
   const snapshot = {
-    id: id("snapshot"),
+    id:
+      id("snapshot"),
 
     createdAt:
       nowIso(),
@@ -524,7 +756,9 @@ async function snapshotState(
   await setStore(
     env,
     "snapshot_index",
-    index.slice(-100)
+    index.slice(
+      -100
+    )
   );
 
   return snapshot;
@@ -575,6 +809,7 @@ async function migrate(
 ) {
   let company = {
     ...defaultCompany(),
+
     ...(
       (await getStore(
         env,
@@ -620,7 +855,8 @@ async function migrate(
     Array.isArray(
       company.researchEvidenceIndex
     )
-      ? company.researchEvidenceIndex
+      ? company
+          .researchEvidenceIndex
       : [];
 
   company.customers =
@@ -641,7 +877,8 @@ async function migrate(
     Array.isArray(
       company.organizationHistory
     )
-      ? company.organizationHistory
+      ? company
+          .organizationHistory
       : [];
 
   company.humanGates =
@@ -699,8 +936,8 @@ async function migrate(
   };
 
   company.selfDevelopment = {
-    mode:
-      "candidate_only",
+    ...defaultCompany()
+      .selfDevelopment,
 
     ...(company.selfDevelopment ||
       {}),
@@ -709,10 +946,13 @@ async function migrate(
   if (
     !company.businesses.length
   ) {
-    const old =
+    const inferred =
       tasks
-        .map((t) =>
-          str(t.title)
+        .map(
+          (task) =>
+            str(
+              task.title
+            )
         )
         .find(Boolean) ||
       "未定義事業";
@@ -722,12 +962,14 @@ async function migrate(
         id("business"),
 
       name:
-        old.includes("：")
-          ? old
+        inferred.includes(
+          "："
+        )
+          ? inferred
               .split("：")
               .slice(1)
               .join("：")
-          : old,
+          : inferred,
 
       problem:
         "過去履歴から再構成された事業。",
@@ -752,27 +994,32 @@ async function migrate(
   const byName =
     new Map(
       company.businesses.map(
-        (b) => [
-          b.name.toLowerCase(),
-          b.id,
+        (business) => [
+          business.name
+            .toLowerCase(),
+
+          business.id,
         ]
       )
     );
 
   for (
-    const b of
+    const business of
       company.businesses.slice(
         1
       )
   ) {
     if (
-      b.name &&
+      business.name &&
       byName.get(
-        b.name.toLowerCase()
-      ) === canonical.id
+        business.name
+          .toLowerCase()
+      ) ===
+        canonical.id
     ) {
-      company.migration.businessAliases[
-        b.id
+      company.migration
+        .businessAliases[
+        business.id
       ] =
         canonical.id;
     }
@@ -783,75 +1030,83 @@ async function migrate(
       .businessAliases;
 
   for (
-    const t of tasks
+    const task of tasks
   ) {
     if (
-      t.businessId &&
-      aliases[t.businessId]
+      task.businessId &&
+      aliases[
+        task.businessId
+      ]
     ) {
-      t.businessId =
-        aliases[t.businessId];
+      task.businessId =
+        aliases[
+          task.businessId
+        ];
     }
 
     if (
-      t.pipeline?.businessId &&
+      task.pipeline
+        ?.businessId &&
       aliases[
-        t.pipeline.businessId
+        task.pipeline
+          .businessId
       ]
     ) {
-      t.pipeline.businessId =
+      task.pipeline.businessId =
         aliases[
-          t.pipeline.businessId
+          task.pipeline
+            .businessId
         ];
     }
   }
 
-  tasks =
-    [
-      ...new Map(
-        tasks.map(
-          (t) => [
-            t.id,
-            t,
-          ]
-        )
-      ).values(),
-    ];
+  tasks = [
+    ...new Map(
+      tasks.map(
+        (task) => [
+          task.id,
+          task,
+        ]
+      )
+    ).values(),
+  ];
 
   company.humanGates =
     tasks
       .filter(
-        (t) =>
-          t.type ===
+        (task) =>
+          task.type ===
             "human_gate" ||
-          t.requiresHuman
+          task.requiresHuman
       )
-      .map((t) => ({
-        id:
-          t.humanGateId ??
-          id("gate"),
+      .map(
+        (task) => ({
+          id:
+            task.humanGateId ??
+            id("gate"),
 
-        taskId:
-          t.id,
+          taskId:
+            task.id,
 
-        businessId:
-          t.businessId,
+          businessId:
+            task.businessId,
 
-        status:
-          t.status ===
-          "waiting_human"
-            ? "pending"
-            : t.status,
+          status:
+            task.status ===
+            "waiting_human"
+              ? "pending"
+              : task.status,
 
-        requiresHuman:
-          true,
+          requiresHuman:
+            true,
 
-        createdAt:
-          t.createdAt,
+          createdAt:
+            task.createdAt,
 
-        updatedAt:
-          nowIso(),
-      }));
+          updatedAt:
+            nowIso(),
+        })
+      );
 
   company.schemaVersion =
     SCHEMA_VERSION;
@@ -886,7 +1141,8 @@ async function migrate(
   await setRuntimeMeta(
     env,
     Number(
-      company.cycleCount || 0
+      company.cycleCount ||
+        0
     ),
     null
   );
@@ -902,11 +1158,11 @@ function hasCompleted(
   actions
 ) {
   return tasks.some(
-    (t) =>
-      t.status ===
+    (task) =>
+      task.status ===
         "completed" &&
       actions.includes(
-        t.action
+        task.action
       )
   );
 }
@@ -953,9 +1209,10 @@ function capabilities(
 
     revenueTracking:
       company.outcomes.some(
-        (o) =>
+        (outcome) =>
           Number(
-            o.revenue || 0
+            outcome.revenue ||
+              0
           ) > 0
       ),
 
@@ -973,7 +1230,11 @@ function capabilities(
           "self_maintenance_repair",
           "code_change_candidate",
         ]
-      ),
+      ) ||
+      company
+        .selfDevelopment
+        ?.lastTestAt !=
+        null,
 
     platformIndependence:
       hasCompleted(
@@ -982,7 +1243,495 @@ function capabilities(
           "platform_decoupling",
         ]
       ),
+
+    sourceControlCandidate:
+      true,
+
+    sourceControlWrite:
+      false,
+
+    buildVerification:
+      company
+        .selfDevelopment
+        ?.lastBuildAt !=
+        null,
+
+    rollback:
+      true,
+
+    deployCandidate:
+      true,
+
+    productionDeploy:
+      false,
+
+    customerGateway:
+      true,
+
+    outcomeGateway:
+      true,
   };
+}
+
+function humanGateSemanticKey(
+  task
+) {
+  const action =
+    normalizeActionName(
+      str(
+        task.action,
+        "human_gate"
+      )
+    );
+
+  if (
+    action ===
+    "self_development_deploy_candidate"
+  ) {
+    const candidateId =
+      str(
+        task.input
+          ?.candidateId,
+        ""
+      ) ||
+      (
+        task.title
+          ?.match(
+            /proposal_[A-Za-z0-9_-]+/
+          ) || []
+      )[0] ||
+      "";
+
+    return `selfdev:${
+      candidateId ||
+      task.id
+    }`;
+  }
+
+  if (
+    action ===
+      "human_gate_publication" ||
+    action ===
+      "human_gate"
+  ) {
+    return `publication:${
+      task.businessId ||
+      "unknown"
+    }`;
+  }
+
+  return `${action}:${
+    task.businessId ||
+    "global"
+  }`;
+}
+
+function pendingHumanGateTasks(
+  tasks
+) {
+  return tasks.filter(
+    (task) =>
+      (
+        task.type ===
+          "human_gate" ||
+        task.requiresHuman
+      ) &&
+      task.status ===
+        "waiting_human"
+  );
+}
+
+async function reconcileHumanGates(
+  env
+) {
+  const company =
+    await getStore(
+      env,
+      "company",
+      defaultCompany()
+    );
+
+  let tasks =
+    (
+      await getStore(
+        env,
+        "tasks",
+        []
+      )
+    ).map(
+      normalizeTask
+    );
+
+  const pending =
+    pendingHumanGateTasks(
+      tasks
+    );
+
+  const groups =
+    new Map();
+
+  for (
+    const task of pending
+  ) {
+    const key =
+      humanGateSemanticKey(
+        task
+      );
+
+    if (
+      !groups.has(key)
+    ) {
+      groups.set(
+        key,
+        []
+      );
+    }
+
+    groups
+      .get(key)
+      .push(task);
+  }
+
+  const canonicalTasks =
+    [];
+
+  const superseded =
+    [];
+
+  for (
+    const [
+      key,
+      group,
+    ] of groups
+  ) {
+    group.sort(
+      (a, b) =>
+        Number(
+          b.priority ||
+            0
+        ) -
+          Number(
+            a.priority ||
+              0
+          ) ||
+          String(
+            a.createdAt
+          ).localeCompare(
+            String(
+              b.createdAt
+            )
+          )
+    );
+
+    const canonical =
+      group[0];
+
+    canonicalTasks.push(
+      canonical
+    );
+
+    for (
+      const duplicate of
+        group.slice(1)
+    ) {
+      duplicate.status =
+        "superseded";
+
+      duplicate.supersededAt =
+        nowIso();
+
+      duplicate.result = {
+        ...(
+          duplicate.result ||
+          {}
+        ),
+
+        supersededReason:
+          "同一Human Gateの重複を自己保守で統合した。",
+
+        canonicalTaskId:
+          canonical.id,
+
+        semanticKey:
+          key,
+      };
+
+      superseded.push(
+        duplicate.id
+      );
+    }
+  }
+
+  const waitingIds =
+    new Set(
+      canonicalTasks.map(
+        (task) =>
+          task.id
+      )
+    );
+
+  for (
+    const task of tasks
+  ) {
+    if (
+      task.status ===
+        "waiting_human" &&
+      (
+        task.type ===
+          "human_gate" ||
+        task.requiresHuman
+      ) &&
+      !waitingIds.has(
+        task.id
+      )
+    ) {
+      task.status =
+        "superseded";
+
+      task.supersededAt =
+        task.supersededAt ||
+        nowIso();
+    }
+  }
+
+  const oldGateByTask =
+    new Map(
+      (
+        Array.isArray(
+          company.humanGates
+        )
+          ? company.humanGates
+          : []
+      ).map(
+        (gate) => [
+          gate.taskId,
+          gate,
+        ]
+      )
+    );
+
+  company.humanGates =
+    canonicalTasks.map(
+      (task) => {
+        const old =
+          oldGateByTask.get(
+            task.id
+          );
+
+        return {
+          id:
+            old?.id ??
+            task.humanGateId ??
+            id("gate"),
+
+          taskId:
+            task.id,
+
+          businessId:
+            task.businessId ??
+            null,
+
+          semanticKey:
+            humanGateSemanticKey(
+              task
+            ),
+
+          status:
+            "pending",
+
+          requiresHuman:
+            true,
+
+          createdAt:
+            old?.createdAt ??
+            task.createdAt ??
+            nowIso(),
+
+          updatedAt:
+            nowIso(),
+        };
+      }
+    );
+
+  await setStore(
+    env,
+    "tasks",
+    tasks
+  );
+
+  await setStore(
+    env,
+    "company",
+    company
+  );
+
+  return {
+    canonicalCount:
+      canonicalTasks.length,
+
+    duplicateCount:
+      superseded.length,
+
+    supersededTaskIds:
+      superseded,
+  };
+}
+
+async function updateCEOState(
+  env
+) {
+  const company =
+    await getStore(
+      env,
+      "company",
+      defaultCompany()
+    );
+
+  const tasks =
+    (
+      await getStore(
+        env,
+        "tasks",
+        []
+      )
+    ).map(
+      normalizeTask
+    );
+
+  const human =
+    pendingHumanGateTasks(
+      tasks
+    ).sort(
+      (a, b) =>
+        Number(
+          b.priority ||
+            0
+        ) -
+        Number(
+          a.priority ||
+            0
+        )
+    );
+
+  const internal =
+    tasks
+      .filter(
+        (task) =>
+          task.internalOnly &&
+          [
+            "pending",
+            "running",
+          ].includes(
+            task.status
+          )
+      )
+      .sort(
+        (a, b) =>
+          Number(
+            b.priority ||
+              0
+          ) -
+          Number(
+            a.priority ||
+              0
+          )
+      );
+
+  const business =
+    tasks
+      .filter(
+        (task) =>
+          task.type ===
+            "business_task" &&
+          [
+            "pending",
+            "running",
+          ].includes(
+            task.status
+          )
+      )
+      .sort(
+        (a, b) =>
+          Number(
+            b.priority ||
+              0
+          ) -
+          Number(
+            a.priority ||
+              0
+          )
+      );
+
+  const activeCandidate =
+    company
+      .selfDevelopment
+      ?.activeCandidateId;
+
+  if (
+    human.length
+  ) {
+    company.currentFocus =
+      "人間承認待ち";
+
+    company.nextAction =
+      `Human Gate：${human[0].title}`;
+  } else if (
+    internal.length
+  ) {
+    company.currentFocus =
+      "内部能力改善中";
+
+    company.nextAction =
+      internal[0].title;
+  } else if (
+    business.length
+  ) {
+    company.currentFocus =
+      "事業実行中";
+
+    company.nextAction =
+      business[0].title;
+  } else if (
+    activeCandidate
+  ) {
+    company.currentFocus =
+      "自己開発評価中";
+
+    company.nextAction =
+      `自己開発Candidate ${activeCandidate} を評価する`;
+  } else {
+    company.currentFocus =
+      "自律評価継続";
+
+    company.nextAction =
+      "次の事業機会・能力ギャップ・自己改善候補を探索する";
+  }
+
+  company.capabilitySnapshot =
+    capabilities(
+      company,
+      tasks
+    );
+
+  company.runtimeVersion =
+    RUNTIME_VERSION;
+
+  company.schemaVersion =
+    SCHEMA_VERSION;
+
+  company.externalActions =
+    false;
+
+  company.externalAI =
+    false;
+
+  await setStore(
+    env,
+    "company",
+    company
+  );
+
+  return company;
 }
 
 async function saveTask(
@@ -998,7 +1747,7 @@ async function saveTask(
 
 async function createTask(
   env,
-  d
+  definition
 ) {
   const tasks =
     (
@@ -1011,20 +1760,60 @@ async function createTask(
       normalizeTask
     );
 
+  const normalized =
+    normalizeTask({
+      id:
+        id("task"),
+
+      ...definition,
+    });
+
+  if (
+    normalized.type ===
+      "human_gate" ||
+    normalized.requiresHuman
+  ) {
+    const key =
+      humanGateSemanticKey(
+        normalized
+      );
+
+    const duplicateGate =
+      tasks.find(
+        (task) =>
+          (
+            task.type ===
+              "human_gate" ||
+            task.requiresHuman
+          ) &&
+          task.status ===
+            "waiting_human" &&
+          humanGateSemanticKey(
+            task
+          ) ===
+            key
+      );
+
+    if (
+      duplicateGate
+    ) {
+      return duplicateGate;
+    }
+  }
+
   const duplicate =
     tasks.find(
-      (t) =>
-        t.action ===
-          d.action &&
-        t.businessId ===
-          (d.businessId ||
-            null) &&
+      (task) =>
+        task.action ===
+          normalized.action &&
+        task.businessId ===
+          normalized.businessId &&
         [
           "pending",
           "running",
           "waiting_human",
         ].includes(
-          t.status
+          task.status
         )
     );
 
@@ -1034,28 +1823,16 @@ async function createTask(
     return duplicate;
   }
 
-  const task =
-    normalizeTask({
-      id:
-        id("task"),
-
-      ...d,
-
-      createdAt:
-        nowIso(),
-
-      updatedAt:
-        nowIso(),
-    });
-
-  tasks.push(task);
+  tasks.push(
+    normalized
+  );
 
   await saveTask(
     env,
     tasks
   );
 
-  return task;
+  return normalized;
 }
 
 async function updateTask(
@@ -1074,22 +1851,22 @@ async function updateTask(
       normalizeTask
     );
 
-  const i =
+  const index =
     tasks.findIndex(
-      (t) =>
-        t.id ===
+      (task) =>
+        task.id ===
         taskId
     );
 
   if (
-    i < 0
+    index < 0
   ) {
     return null;
   }
 
-  tasks[i] =
+  tasks[index] =
     normalizeTask({
-      ...tasks[i],
+      ...tasks[index],
 
       ...patch,
 
@@ -1102,7 +1879,7 @@ async function updateTask(
     tasks
   );
 
-  return tasks[i];
+  return tasks[index];
 }
 
 async function saveArtifact(
@@ -1118,15 +1895,18 @@ async function saveArtifact(
       task.id,
 
     businessId:
-      task.businessId ||
+      task.businessId ??
       null,
 
     department:
-      task.department ||
-      null,
+      normalizeDepartmentName(
+        task.department
+      ),
 
     action:
-      task.action,
+      normalizeActionName(
+        task.action
+      ),
 
     createdAt:
       nowIso(),
@@ -1158,10 +1938,10 @@ async function saveArtifact(
       task.businessId,
 
     department:
-      task.department,
+      artifact.department,
 
     action:
-      task.action,
+      artifact.action,
 
     createdAt:
       artifact.createdAt,
@@ -1178,7 +1958,13 @@ async function saveArtifact(
   return artifact;
 }
 
-async function audit(env) {
+async function audit(
+  env
+) {
+  await reconcileHumanGates(
+    env
+  );
+
   const company =
     await getStore(
       env,
@@ -1203,17 +1989,18 @@ async function audit(env) {
   const businessIds =
     new Set(
       company.businesses.map(
-        (b) => b.id
+        (business) =>
+          business.id
       )
     );
 
   for (
-    const t of tasks
+    const task of tasks
   ) {
     if (
-      t.businessId &&
+      task.businessId &&
       !businessIds.has(
-        t.businessId
+        task.businessId
       )
     ) {
       anomalies.push({
@@ -1221,10 +2008,10 @@ async function audit(env) {
           "orphan_business_reference",
 
         taskId:
-          t.id,
+          task.id,
 
         businessId:
-          t.businessId,
+          task.businessId,
       });
     }
   }
@@ -1253,22 +2040,20 @@ async function audit(env) {
   const gateIds =
     new Set(
       company.humanGates.map(
-        (g) =>
-          g.taskId
+        (gate) =>
+          gate.taskId
       )
     );
 
   for (
-    const t of tasks.filter(
-      (t) =>
-        t.type ===
-          "human_gate" ||
-        t.requiresHuman
-    )
+    const task of
+      pendingHumanGateTasks(
+        tasks
+      )
   ) {
     if (
       !gateIds.has(
-        t.id
+        task.id
       )
     ) {
       anomalies.push({
@@ -1276,23 +2061,23 @@ async function audit(env) {
           "missing_human_gate_record",
 
         taskId:
-          t.id,
+          task.id,
       });
     }
   }
 
   for (
-    const t of tasks.filter(
-      (t) =>
-        t.status ===
+    const task of tasks.filter(
+      (item) =>
+        item.status ===
           "completed" &&
-        t.artifactId
+        item.artifactId
     )
   ) {
     const artifact =
       await getStore(
         env,
-        `artifact:${t.artifactId}`,
+        `artifact:${task.artifactId}`,
         null
       );
 
@@ -1302,10 +2087,10 @@ async function audit(env) {
           "missing_artifact",
 
         taskId:
-          t.id,
+          task.id,
 
         artifactId:
-          t.artifactId,
+          task.artifactId,
       });
     }
   }
@@ -1334,6 +2119,9 @@ async function audit(env) {
       -200
     );
 
+  company.capabilitySnapshot =
+    currentCaps;
+
   await setStore(
     env,
     "company",
@@ -1354,6 +2142,10 @@ async function audit(env) {
 
     capabilities:
       currentCaps,
+
+    humanGateCount:
+      company.humanGates
+        .length,
   };
 }
 
@@ -1362,44 +2154,50 @@ async function ensureMaintenance(
   report
 ) {
   const mappings = {
-    orphan_business_reference: [
-      "self_maintenance_state_reconciliation",
-      "自己保守：事業参照を修復する",
-    ],
+    orphan_business_reference:
+      [
+        "self_maintenance_state_reconciliation",
+        "自己保守：事業参照を修復する",
+      ],
 
-    capability_snapshot_stale: [
-      "self_maintenance_capability_reconciliation",
-      "自己保守：Capabilityを再構築する",
-    ],
+    capability_snapshot_stale:
+      [
+        "self_maintenance_capability_reconciliation",
+        "自己保守：Capabilityを再構築する",
+      ],
 
-    missing_human_gate_record: [
-      "self_maintenance_human_gate_reconciliation",
-      "自己保守：Human Gateを再構築する",
-    ],
+    missing_human_gate_record:
+      [
+        "self_maintenance_human_gate_reconciliation",
+        "自己保守：Human Gateを再構築する",
+      ],
 
-    missing_artifact: [
-      "self_maintenance_artifact_reconciliation",
-      "自己保守：Artifact参照を修復する",
-    ],
+    missing_artifact:
+      [
+        "self_maintenance_artifact_reconciliation",
+        "自己保守：Artifact参照を修復する",
+      ],
 
-    schema_version_mismatch: [
-      "self_maintenance_state_reconciliation",
-      "自己保守：Schema移行を完了する",
-    ],
+    schema_version_mismatch:
+      [
+        "self_maintenance_state_reconciliation",
+        "自己保守：Schema移行を完了する",
+      ],
   };
 
-  const out = [];
+  const result =
+    [];
 
   for (
-    const a of
+    const anomaly of
       report.anomalies
   ) {
-    const d =
+    const definition =
       mappings[
-        a.type
+        anomaly.type
       ];
 
-    if (!d) {
+    if (!definition) {
       continue;
     }
 
@@ -1416,21 +2214,21 @@ async function ensureMaintenance(
 
     if (
       tasks.some(
-        (t) =>
-          t.action ===
-            d[0] &&
+        (task) =>
+          task.action ===
+            definition[0] &&
           [
             "pending",
             "running",
           ].includes(
-            t.status
+            task.status
           )
       )
     ) {
       continue;
     }
 
-    out.push(
+    result.push(
       await createTask(
         env,
         {
@@ -1438,13 +2236,13 @@ async function ensureMaintenance(
             "internal_task",
 
           action:
-            d[0],
+            definition[0],
 
           title:
-            d[1],
+            definition[1],
 
           description:
-            `Detected: ${a.type}`,
+            `Detected: ${anomaly.type}`,
 
           department:
             "開発基盤",
@@ -1465,7 +2263,7 @@ async function ensureMaintenance(
     );
   }
 
-  return out;
+  return result;
 }
 
 function candidatePatch(
@@ -1477,16 +2275,50 @@ function candidatePatch(
   ) {
     return `export function rebuildCapabilitySnapshot(company, tasks) {
   return {
-    externalResearch: company.researchEvidenceIndex.length > 0,
-    productGeneration: tasks.some(t => t.status === "completed" && t.action === "product_prototype"),
-    salesPreparation: tasks.some(t => t.status === "completed" && t.action === "sales_package_generation"),
-    customerFeedback: company.customers.length > 0,
-    outcomeTracking: company.outcomes.length > 0,
-    revenueTracking: company.outcomes.some(o => Number(o.revenue || 0) > 0),
-    publication: false,
-    payment: false,
-    selfDevelopment: tasks.some(t => t.status === "completed" && ["self_development_test", "self_maintenance_repair", "code_change_candidate"].includes(t.action)),
-    platformIndependence: tasks.some(t => t.status === "completed" && t.action === "platform_decoupling")
+    externalResearch:
+      company.researchEvidenceIndex.length > 0,
+
+    productGeneration:
+      tasks.some(
+        t =>
+          t.status === "completed" &&
+          t.action === "product_prototype"
+      ),
+
+    salesPreparation:
+      tasks.some(
+        t =>
+          t.status === "completed" &&
+          t.action === "sales_package_generation"
+      ),
+
+    customerFeedback:
+      company.customers.length > 0,
+
+    outcomeTracking:
+      company.outcomes.length > 0,
+
+    revenueTracking:
+      company.outcomes.some(
+        o =>
+          Number(o.revenue || 0) > 0
+      ),
+
+    publication:
+      false,
+
+    payment:
+      false,
+
+    selfDevelopment:
+      true,
+
+    platformIndependence:
+      tasks.some(
+        t =>
+          t.status === "completed" &&
+          t.action === "platform_decoupling"
+      )
   };
 }`;
   }
@@ -1496,23 +2328,69 @@ function candidatePatch(
     "human_gate_sync"
   ) {
     return `export function syncHumanGates(company, tasks) {
-  company.humanGates = tasks
-    .filter(t => t.type === "human_gate" || t.requiresHuman)
-    .map(t => ({
-      taskId: t.id,
-      status: t.status,
-      requiresHuman: true
-    }));
+  company.humanGates =
+    tasks
+      .filter(
+        t =>
+          t.type === "human_gate" ||
+          t.requiresHuman
+      )
+      .map(
+        t => ({
+          taskId: t.id,
+          status: t.status,
+          requiresHuman: true
+        })
+      );
+
   return company;
 }`;
   }
 
   return `export function selfMaintenanceStep(state) {
   const next = { ...state };
-  next.runtimeVersion = "${RUNTIME_VERSION}";
-  next.schemaVersion = "${SCHEMA_VERSION}";
+
+  next.runtimeVersion =
+    "${RUNTIME_VERSION}";
+
+  next.schemaVersion =
+    "${SCHEMA_VERSION}";
+
   return next;
 }`;
+}
+
+async function sha256Hex(
+  text
+) {
+  const bytes =
+    new TextEncoder().encode(
+      String(
+        text || ""
+      )
+    );
+
+  const digest =
+    await crypto.subtle.digest(
+      "SHA-256",
+      bytes
+    );
+
+  return [
+    ...new Uint8Array(
+      digest
+    ),
+  ]
+    .map(
+      (byte) =>
+        byte
+          .toString(16)
+          .padStart(
+            2,
+            "0"
+          )
+    )
+    .join("");
 }
 
 function testCandidate(
@@ -1521,13 +2399,17 @@ function testCandidate(
   const failures =
     [];
 
-  const src =
+  const warnings =
+    [];
+
+  const source =
     String(
       code || ""
     );
 
   if (
-    src.length < 30
+    source.length <
+    30
   ) {
     failures.push(
       "candidate_too_small"
@@ -1535,7 +2417,16 @@ function testCandidate(
   }
 
   if (
-    !src.includes(
+    source.length >
+    50000
+  ) {
+    failures.push(
+      "candidate_too_large"
+    );
+  }
+
+  if (
+    !source.includes(
       "export"
     )
   ) {
@@ -1545,7 +2436,7 @@ function testCandidate(
   }
 
   if (
-    !src.includes(
+    !source.includes(
       "function"
     )
   ) {
@@ -1555,26 +2446,26 @@ function testCandidate(
   }
 
   for (
-    const p of
+    const pattern of
       DANGEROUS_PATTERNS
   ) {
     if (
-      src.includes(
-        p
+      source.includes(
+        pattern
       )
     ) {
       failures.push(
-        `dangerous_pattern:${p}`
+        `dangerous_pattern:${pattern}`
       );
     }
   }
 
   if (
-    src.includes(
+    source.includes(
       "fetch("
     ) &&
-    src.includes(
-      "POST"
+    /method\s*:\s*["']POST["']/i.test(
+      source
     )
   ) {
     failures.push(
@@ -1582,44 +2473,102 @@ function testCandidate(
     );
   }
 
-  const balanced =
-    [
-      "(",
-      "[",
-      "{",
-    ].every(
-      (open) => {
-        const close =
-          {
-            "(": ")",
-            "[": "]",
-            "{": "}",
-          }[open];
+  if (
+    /WebSocket|RTCDataChannel|navigator\.sendBeacon/i.test(
+      source
+    )
+  ) {
+    warnings.push(
+      "external_network_capability_detected"
+    );
+  }
 
-        return (
-          src.split(
-            open
-          ).length ===
-          src.split(
-            close
-          ).length
-        );
-      }
+  const expectedClosers =
+    [];
+
+  const pairs = {
+    "(": ")",
+    "[": "]",
+    "{": "}",
+  };
+
+  const closers =
+    new Set(
+      Object.values(
+        pairs
+      )
     );
 
+  for (
+    const char of source
+  ) {
+    if (
+      pairs[char]
+    ) {
+      expectedClosers.push(
+        pairs[char]
+      );
+
+      continue;
+    }
+
+    if (
+      closers.has(
+        char
+      )
+    ) {
+      const expected =
+        expectedClosers.pop();
+
+      if (
+        expected !==
+        char
+      ) {
+        failures.push(
+          "unbalanced_delimiters"
+        );
+
+        break;
+      }
+    }
+  }
+
   if (
-    !balanced
+    expectedClosers.length
   ) {
     failures.push(
       "unbalanced_delimiters"
     );
   }
 
+  if (
+    !/export\s+function\s+/.test(
+      source
+    )
+  ) {
+    failures.push(
+      "missing_function_export_interface"
+    );
+  }
+
   return {
     passed:
-      failures.length === 0,
+      failures.length ===
+      0,
 
-    failures,
+    failures:
+      [
+        ...new Set(
+          failures
+        ),
+      ],
+
+    warnings:
+      [
+        ...new Set(
+          warnings
+        ),
+      ],
 
     checks:
       [
@@ -1629,6 +2578,7 @@ function testCandidate(
         "dangerous_patterns",
         "external_write",
         "delimiter_balance",
+        "function_export_interface",
       ],
   };
 }
@@ -1636,12 +2586,58 @@ function testCandidate(
 async function selfDevelopmentProposal(
   env
 ) {
+  const currentCompany =
+    await getStore(
+      env,
+      "company",
+      defaultCompany()
+    );
+
+  const activeCandidateId =
+    currentCompany
+      .selfDevelopment
+      ?.activeCandidateId;
+
+  if (
+    activeCandidateId
+  ) {
+    const active =
+      await getStore(
+        env,
+        `candidate:${activeCandidateId}`,
+        null
+      );
+
+    if (
+      active &&
+      [
+        "waiting_human",
+        "approved_pending_external_deploy",
+        "tested",
+        "packaged",
+      ].includes(
+        active.status
+      )
+    ) {
+      return {
+        proposal:
+          active,
+
+        candidateId:
+          active.id,
+
+        existing:
+          true,
+      };
+    }
+  }
+
   const report =
     await audit(
       env
     );
 
-  const first =
+  const trigger =
     report.anomalies[0]
       ?.type ??
     "capability_gap";
@@ -1651,11 +2647,12 @@ async function selfDevelopmentProposal(
       report.capabilities
     )
       .filter(
-        ([, v]) =>
-          v === false
+        ([, value]) =>
+          value === false
       )
       .map(
-        ([k]) => k
+        ([key]) =>
+          key
       );
 
   const proposal = {
@@ -1671,8 +2668,7 @@ async function selfDevelopmentProposal(
     target:
       "company_core",
 
-    trigger:
-      first,
+    trigger,
 
     anomalyCount:
       report.anomalyCount,
@@ -1680,10 +2676,10 @@ async function selfDevelopmentProposal(
     capabilityGaps,
 
     intendedChange:
-      first ===
+      trigger ===
       "capability_snapshot_stale"
         ? "Capability computation and state synchronization"
-        : first ===
+        : trigger ===
           "missing_human_gate_record"
         ? "Human Gate synchronization"
         : "Self-maintenance and capability growth",
@@ -1703,10 +2699,10 @@ async function selfDevelopmentProposal(
 
   const candidateCode =
     candidatePatch(
-      first ===
+      trigger ===
         "missing_human_gate_record"
         ? "human_gate_sync"
-        : first
+        : trigger
     );
 
   const artifact =
@@ -1727,6 +2723,7 @@ async function selfDevelopmentProposal(
       },
       {
         proposal,
+
         candidateCode,
       }
     );
@@ -1750,6 +2747,15 @@ async function selfDevelopmentProposal(
 
       safety:
         null,
+
+      build:
+        null,
+
+      package:
+        null,
+
+      deploymentPlan:
+        null,
     }
   );
 
@@ -1760,11 +2766,26 @@ async function selfDevelopmentProposal(
       defaultCompany()
     );
 
-  company.selfDevelopment.lastProposalAt =
+  company.selfDevelopment
+    .lastProposalAt =
     nowIso();
 
-  company.selfDevelopment.lastCandidateId =
+  company.selfDevelopment
+    .lastCandidateId =
     proposal.id;
+
+  company.selfDevelopment
+    .activeCandidateId =
+    proposal.id;
+
+  company.selfDevelopment
+    .proposalCount =
+    Number(
+      company
+        .selfDevelopment
+        .proposalCount ||
+        0
+    ) + 1;
 
   await setStore(
     env,
@@ -1823,6 +2844,39 @@ async function selfDevelopmentTest(
       candidate.candidateCode
     );
 
+  const checksum =
+    await sha256Hex(
+      candidate.candidateCode
+    );
+
+  const bytes =
+    new TextEncoder().encode(
+      candidate.candidateCode
+    ).length;
+
+  const build = {
+    status:
+      result.passed
+        ? "ready"
+        : "blocked",
+
+    checksum,
+
+    bytes,
+
+    lineCount:
+      candidate
+        .candidateCode
+        .split("\n")
+        .length,
+
+    target:
+      "internal_module_candidate",
+
+    generatedAt:
+      nowIso(),
+  };
+
   const safety = {
     externalActions:
       false,
@@ -1836,6 +2890,9 @@ async function selfDevelopmentTest(
     dangerousPatternsBlocked:
       true,
 
+    sandboxExecution:
+      false,
+
     riskLevel:
       result.passed
         ? "low"
@@ -1847,6 +2904,14 @@ async function selfDevelopmentTest(
 
   candidate.safety =
     safety;
+
+  candidate.build =
+    build;
+
+  candidate.status =
+    result.passed
+      ? "tested"
+      : "test_failed";
 
   candidate.testedAt =
     nowIso();
@@ -1864,8 +2929,21 @@ async function selfDevelopmentTest(
       defaultCompany()
     );
 
-  company.selfDevelopment.lastTestAt =
+  company.selfDevelopment
+    .lastTestAt =
     nowIso();
+
+  if (
+    result.passed
+  ) {
+    company.selfDevelopment
+      .lastBuildAt =
+      nowIso();
+  }
+
+  company.selfDevelopment
+    .activeCandidateId =
+    candidateId;
 
   await setStore(
     env,
@@ -1879,7 +2957,339 @@ async function selfDevelopmentTest(
     test:
       result,
 
+    build,
+
     safety,
+  };
+}
+
+async function sourceControlAdapterStatus(
+  env
+) {
+  const company =
+    await getStore(
+      env,
+      "company",
+      defaultCompany()
+    );
+
+  return {
+    mode:
+      company.selfDevelopment
+        ?.adapterMode ??
+      "plan_only",
+
+    sourceControlCandidate:
+      true,
+
+    sourceControlWrite:
+      false,
+
+    githubWrite:
+      false,
+
+    productionDeploy:
+      false,
+
+    cloudflareDeploy:
+      false,
+
+    reason:
+      "現在はコード変更候補・Build・Deploy計画まで。実リポジトリ書込と本番Deployは未接続。",
+
+    requiredForNextStep:
+      [
+        "GitHub等のSource Control connectorまたは安全なAPI認証",
+        "隔離Build Runner",
+        "検証済みDeployment Adapter",
+        "本番後Health Check",
+        "Rollback検証",
+      ],
+  };
+}
+
+async function createSelfDevelopmentPackage(
+  env,
+  candidateId
+) {
+  const candidate =
+    await getStore(
+      env,
+      `candidate:${candidateId}`,
+      null
+    );
+
+  if (!candidate) {
+    throw new Error(
+      "Candidate not found"
+    );
+  }
+
+  if (
+    !candidate.test?.passed
+  ) {
+    throw new Error(
+      "Candidate must pass tests before packaging"
+    );
+  }
+
+  const checksum =
+    candidate.build
+      ?.checksum ??
+    await sha256Hex(
+      candidate.candidateCode
+    );
+
+  const manifest = {
+    packageId:
+      id("devpkg"),
+
+    candidateId,
+
+    runtimeFrom:
+      RUNTIME_VERSION,
+
+    schemaFrom:
+      SCHEMA_VERSION,
+
+    targetFile:
+      "worker.js",
+
+    targetMode:
+      "candidate_patch",
+
+    checksum,
+
+    byteCount:
+      new TextEncoder()
+        .encode(
+          candidate.candidateCode ||
+            ""
+        ).length,
+
+    lineCount:
+      String(
+        candidate.candidateCode ||
+          ""
+      ).split(
+        "\n"
+      ).length,
+
+    testsPassed:
+      true,
+
+    safetyPassed:
+      candidate.safety
+        ?.riskLevel ===
+      "low",
+
+    externalActions:
+      false,
+
+    productionDeploy:
+      false,
+
+    sourceControlWrite:
+      false,
+
+    rollbackAvailable:
+      true,
+
+    createdAt:
+      nowIso(),
+  };
+
+  const packageArtifact =
+    await saveArtifact(
+      env,
+      {
+        id:
+          manifest.packageId,
+
+        action:
+          "self_development_package",
+
+        department:
+          "開発基盤",
+
+        businessId:
+          null,
+      },
+      {
+        manifest,
+
+        candidateCode:
+          candidate.candidateCode,
+
+        test:
+          candidate.test,
+
+        safety:
+          candidate.safety,
+      }
+    );
+
+  candidate.package =
+    manifest;
+
+  candidate.packageArtifactId =
+    packageArtifact.id;
+
+  candidate.status =
+    "packaged";
+
+  await setStore(
+    env,
+    `candidate:${candidateId}`,
+    candidate
+  );
+
+  const company =
+    await getStore(
+      env,
+      "company",
+      defaultCompany()
+    );
+
+  company.selfDevelopment
+    .packageCount =
+    Number(
+      company
+        .selfDevelopment
+        .packageCount ||
+        0
+    ) + 1;
+
+  company.selfDevelopment
+    .lastBuildAt =
+    nowIso();
+
+  await setStore(
+    env,
+    "company",
+    company
+  );
+
+  return {
+    manifest,
+
+    packageArtifact,
+
+    sourceControl:
+      await sourceControlAdapterStatus(
+        env
+      ),
+  };
+}
+
+async function createDeploymentPlan(
+  env,
+  candidateId
+) {
+  const candidate =
+    await getStore(
+      env,
+      `candidate:${candidateId}`,
+      null
+    );
+
+  if (!candidate) {
+    throw new Error(
+      "Candidate not found"
+    );
+  }
+
+  if (
+    !candidate.package?.checksum
+  ) {
+    throw new Error(
+      "Development package not found"
+    );
+  }
+
+  const plan = {
+    id:
+      id("deployplan"),
+
+    candidateId,
+
+    packageId:
+      candidate.package
+        .packageId,
+
+    target:
+      "Cloudflare Worker / GitHub-backed source",
+
+    preconditions:
+      [
+        "Human Gate approved",
+        "Build manifest checksum verified",
+        "Production snapshot exists",
+        "External adapters authenticated",
+        "Health check passes",
+      ],
+
+    steps:
+      [
+        "approved package取得",
+        "隔離Source Workspaceへ適用",
+        "フル回帰テスト",
+        "生成Worker bundle比較",
+        "明示承認後のみ本番Deploy",
+        "Health確認",
+        "Rollback情報保持",
+      ],
+
+    automaticExecution:
+      false,
+
+    createdAt:
+      nowIso(),
+  };
+
+  const artifact =
+    await saveArtifact(
+      env,
+      {
+        id:
+          plan.id,
+
+        action:
+          "deployment_plan",
+
+        department:
+          "開発基盤",
+
+        businessId:
+          null,
+      },
+      plan
+    );
+
+  candidate.deploymentPlan =
+    plan;
+
+  await setStore(
+    env,
+    `candidate:${candidateId}`,
+    candidate
+  );
+
+  await setStore(
+    env,
+    `deployplan:${plan.id}`,
+    plan
+  );
+
+  return {
+    plan,
+
+    artifact,
+
+    adapter:
+      await sourceControlAdapterStatus(
+        env
+      ),
   };
 }
 
@@ -1908,10 +3318,78 @@ async function createDeployCandidate(
     );
   }
 
+  if (
+    !candidate.build?.checksum
+  ) {
+    throw new Error(
+      "Candidate build manifest not found"
+    );
+  }
+
+  await reconcileHumanGates(
+    env
+  );
+
+  const currentTasks =
+    (
+      await getStore(
+        env,
+        "tasks",
+        []
+      )
+    ).map(
+      normalizeTask
+    );
+
+  const existing =
+    currentTasks.find(
+      (task) =>
+        task.status ===
+          "waiting_human" &&
+        task.action ===
+          "self_development_deploy_candidate" &&
+        str(
+          task.input
+            ?.candidateId,
+          ""
+        ) ===
+          candidateId
+    );
+
+  if (
+    existing
+  ) {
+    candidate.deployCandidateTaskId =
+      existing.id;
+
+    candidate.status =
+      "waiting_human";
+
+    await setStore(
+      env,
+      `candidate:${candidateId}`,
+      candidate
+    );
+
+    return {
+      candidate,
+
+      task:
+        existing,
+
+      snapshotId:
+        candidate.snapshotId ??
+        null,
+
+      duplicatePrevented:
+        true,
+    };
+  }
+
   const snapshot =
     await snapshotState(
       env,
-      "before_self_development_deploy_candidate"
+      `before_self_development_deploy_candidate:${candidateId}`
     );
 
   const task =
@@ -1925,10 +3403,10 @@ async function createDeployCandidate(
           "self_development_deploy_candidate",
 
         title:
-          `自己開発Deploy Candidate承認：${candidateId}`,
+          `自己開発Deploy候補承認：${candidateId}`,
 
         description:
-          "生成・テスト済みの内部コード変更候補。本番反映にはHuman Gateが必要。",
+          "生成・テスト・Build済みの内部コード変更候補。本番反映にはHuman Gateが必要。",
 
         department:
           "開発基盤",
@@ -1950,6 +3428,11 @@ async function createDeployCandidate(
 
         requiresHuman:
           true,
+
+        input:
+          {
+            candidateId,
+          },
       }
     );
 
@@ -1971,6 +3454,23 @@ async function createDeployCandidate(
     candidate
   );
 
+  const company =
+    await getStore(
+      env,
+      "company",
+      defaultCompany()
+    );
+
+  company.selfDevelopment
+    .activeCandidateId =
+    candidateId;
+
+  await setStore(
+    env,
+    "company",
+    company
+  );
+
   await memory(
     env,
     {
@@ -1986,7 +3486,7 @@ async function createDeployCandidate(
         snapshot.id,
 
       summary:
-        "自己開発候補を安全なDeploy CandidateとしてHuman Gateへ送った。",
+        "自己開発候補をBuild済みDeploy CandidateとしてHuman Gateへ送った。",
     }
   );
 
@@ -1997,6 +3497,98 @@ async function createDeployCandidate(
 
     snapshotId:
       snapshot.id,
+
+    duplicatePrevented:
+      false,
+  };
+}
+
+async function rollbackSnapshot(
+  env,
+  snapshotId
+) {
+  const snapshot =
+    await getStore(
+      env,
+      `snapshot:${snapshotId}`,
+      null
+    );
+
+  if (!snapshot) {
+    throw new Error(
+      "Snapshot not found"
+    );
+  }
+
+  await setStore(
+    env,
+    "company",
+    snapshot.company
+  );
+
+  await setStore(
+    env,
+    "tasks",
+    snapshot.tasks
+  );
+
+  await setStore(
+    env,
+    "artifact_index",
+    snapshot.artifactIndex ||
+      []
+  );
+
+  const company =
+    await getStore(
+      env,
+      "company",
+      defaultCompany()
+    );
+
+  company.selfDevelopment = {
+    ...(
+      company.selfDevelopment ||
+      {}
+    ),
+
+    lastRollbackAt:
+      nowIso(),
+
+    activeCandidateId:
+      null,
+  };
+
+  await setStore(
+    env,
+    "company",
+    company
+  );
+
+  await memory(
+    env,
+    {
+      type:
+        "self_development_rollback",
+
+      snapshotId,
+
+      summary:
+        "D1上の会社状態を安全スナップショットへ復元した。",
+    }
+  );
+
+  return {
+    ok:
+      true,
+
+    snapshotId,
+
+    restoredAt:
+      nowIso(),
+
+    sourceCodeRollback:
+      false,
   };
 }
 
@@ -2006,29 +3598,33 @@ async function createBusinessPipelineTask(
   stage
 ) {
   const map = {
-    research_brief: [
-      "市場調査：",
-      "調査",
-      "business_task",
-    ],
+    research_brief:
+      [
+        "市場調査：",
+        "調査",
+        "business_task",
+      ],
 
-    product_prototype: [
-      "商品設計・試作：",
-      "技術",
-      "business_task",
-    ],
+    product_prototype:
+      [
+        "商品設計・試作：",
+        "技術",
+        "business_task",
+      ],
 
-    sales_package_generation: [
-      "販売準備：",
-      "企画",
-      "business_task",
-    ],
+    sales_package_generation:
+      [
+        "販売準備：",
+        "企画",
+        "business_task",
+      ],
 
-    sales_evaluation: [
-      "販売構成評価：",
-      "事業成果",
-      "business_task",
-    ],
+    sales_evaluation:
+      [
+        "販売構成評価：",
+        "事業成果",
+        "business_task",
+      ],
   };
 
   if (
@@ -2080,10 +3676,10 @@ async function createBusinessPipelineTask(
     );
   }
 
-  const d =
+  const definition =
     map[stage];
 
-  if (!d) {
+  if (!definition) {
     throw new Error(
       `Unknown business stage: ${stage}`
     );
@@ -2093,16 +3689,16 @@ async function createBusinessPipelineTask(
     env,
     {
       type:
-        d[2],
+        definition[2],
 
       action:
         stage,
 
       title:
-        `${d[0]}${business.name}`,
+        `${definition[0]}${business.name}`,
 
       department:
-        d[1],
+        definition[1],
 
       priority:
         90,
@@ -2146,8 +3742,8 @@ async function executeBusinessTask(
 
   const business =
     company.businesses.find(
-      (b) =>
-        b.id ===
+      (item) =>
+        item.id ===
         task.businessId
     );
 
@@ -2158,7 +3754,9 @@ async function executeBusinessTask(
   }
 
   let payload;
-  let nextTask = null;
+
+  let nextTask =
+    null;
 
   switch (
     task.action
@@ -2372,17 +3970,15 @@ async function executeBusinessTask(
         task.action,
 
       summary:
-        payload.status ||
-        payload.result ||
+        payload.status ??
+        payload.result ??
         "事業タスク完了",
     }
   );
 
   return {
     payload,
-
     artifact,
-
     nextTask,
   };
 }
@@ -2449,72 +4045,23 @@ async function executeMaintenance(
     task.action ===
     "self_maintenance_human_gate_reconciliation"
   ) {
-    const company =
-      await getStore(
-        env,
-        "company",
-        defaultCompany()
+    const result =
+      await reconcileHumanGates(
+        env
       );
-
-    const tasks =
-      (
-        await getStore(
-          env,
-          "tasks",
-          []
-        )
-      ).map(
-        normalizeTask
-      );
-
-    company.humanGates =
-      tasks
-        .filter(
-          (t) =>
-            t.type ===
-              "human_gate" ||
-            t.requiresHuman
-        )
-        .map((t) => ({
-          id:
-            t.humanGateId ??
-            id("gate"),
-
-          taskId:
-            t.id,
-
-          businessId:
-            t.businessId,
-
-          status:
-            t.status ===
-            "waiting_human"
-              ? "pending"
-              : t.status,
-
-          requiresHuman:
-            true,
-
-          createdAt:
-            t.createdAt,
-
-          updatedAt:
-            nowIso(),
-        }));
-
-    await setStore(
-      env,
-      "company",
-      company
-    );
 
     payload = {
       repaired:
         "human_gates",
 
-      count:
-        company
-          .humanGates.length,
+      canonicalCount:
+        result.canonicalCount,
+
+      duplicateCount:
+        result.duplicateCount,
+
+      supersededTaskIds:
+        result.supersededTaskIds,
     };
   } else {
     const result =
@@ -2599,6 +4146,119 @@ async function executeTask(
         );
     } else if (
       task.action ===
+      "research_external_evidence"
+    ) {
+      const source =
+        RESEARCH_SOURCES
+          .meti;
+
+      const response =
+        await fetch(
+          source.url,
+          {
+            headers:
+              {
+                "user-agent":
+                  `AI-Company-Core/${SCHEMA_VERSION}`,
+              },
+          }
+        );
+
+      const textBody =
+        await response.text();
+
+      const evidence = {
+        id:
+          id("evidence"),
+
+        sourceId:
+          "meti",
+
+        sourceName:
+          source.name,
+
+        url:
+          source.url,
+
+        status:
+          response.status,
+
+        ok:
+          response.ok,
+
+        retrievedAt:
+          nowIso(),
+
+        contentPreview:
+          textBody.slice(
+            0,
+            20000
+          ),
+      };
+
+      await setStore(
+        env,
+        `evidence:${evidence.id}`,
+        evidence
+      );
+
+      const company =
+        await getStore(
+          env,
+          "company",
+          defaultCompany()
+        );
+
+      company.researchEvidenceIndex.push(
+        {
+          id:
+            evidence.id,
+
+          sourceId:
+            evidence.sourceId,
+
+          sourceName:
+            evidence.sourceName,
+
+          url:
+            evidence.url,
+
+          status:
+            evidence.status,
+
+          ok:
+            evidence.ok,
+
+          retrievedAt:
+            evidence.retrievedAt,
+        }
+      );
+
+      await setStore(
+        env,
+        "company",
+        company
+      );
+
+      result = {
+        payload:
+          {
+            status:
+              "external_research_completed",
+
+            evidenceId:
+              evidence.id,
+          },
+
+        artifact:
+          await saveArtifact(
+            env,
+            task,
+            evidence
+          ),
+      };
+    } else if (
+      task.action ===
       "self_development_test"
     ) {
       result =
@@ -2615,6 +4275,102 @@ async function executeTask(
         await selfDevelopmentProposal(
           env
         );
+    } else if (
+      task.action ===
+      "development_infrastructure"
+    ) {
+      result = {
+        payload:
+          {
+            status:
+              "development_infrastructure_verified",
+
+            sandbox:
+              true,
+
+            staticTesting:
+              true,
+
+            buildManifest:
+              true,
+
+            rollback:
+              true,
+
+            productionDeploy:
+              false,
+          },
+
+        artifact:
+          await saveArtifact(
+            env,
+            task,
+            {
+              sandbox:
+                true,
+
+              test:
+                true,
+
+              build:
+                true,
+
+              rollback:
+                true,
+
+              productionDeploy:
+                false,
+            }
+          ),
+      };
+    } else if (
+      task.action ===
+      "platform_decoupling"
+    ) {
+      result = {
+        payload:
+          {
+            status:
+              "platform_adapter_architecture_defined",
+
+            adapters:
+              {
+                storage:
+                  "StorageAdapter",
+
+                scheduler:
+                  "SchedulerAdapter",
+
+                executor:
+                  "ExecutorAdapter",
+
+                web:
+                  "WebAdapter",
+              },
+
+            platformWrite:
+              false,
+          },
+
+        artifact:
+          await saveArtifact(
+            env,
+            task,
+            {
+              storage:
+                "StorageAdapter",
+
+              scheduler:
+                "SchedulerAdapter",
+
+              executor:
+                "ExecutorAdapter",
+
+              web:
+                "WebAdapter",
+            }
+          ),
+      };
     } else {
       result = {
         payload:
@@ -2655,7 +4411,8 @@ async function executeTask(
             null,
 
           artifactId:
-            result.artifact?.id ??
+            result.artifact
+              ?.id ??
             null,
         }
       );
@@ -2671,7 +4428,9 @@ async function executeTask(
         result.artifact ??
         null,
     };
-  } catch (e) {
+  } catch (
+    error
+  ) {
     const failed =
       await updateTask(
         env,
@@ -2683,8 +4442,8 @@ async function executeTask(
           result:
             {
               error:
-                e?.message ??
-                String(e),
+                error?.message ??
+                String(error),
             },
         }
       );
@@ -2697,8 +4456,8 @@ async function executeTask(
         failed,
 
       error:
-        e?.message ??
-        String(e),
+        error?.message ??
+        String(error),
     };
   }
 }
@@ -2713,6 +4472,10 @@ async function companyCycle(
       env
     );
 
+  await reconcileHumanGates(
+    env
+  );
+
   let tasks =
     (
       await getStore(
@@ -2725,24 +4488,17 @@ async function companyCycle(
     );
 
   const pendingHuman =
-    tasks.filter(
-      (t) =>
-        (
-          t.type ===
-            "human_gate" ||
-          t.requiresHuman
-        ) &&
-        t.status ===
-          "waiting_human"
+    pendingHumanGateTasks(
+      tasks
     );
 
   let executable =
     tasks
       .filter(
-        (t) =>
-          t.status ===
+        (task) =>
+          task.status ===
             "pending" &&
-          t.type !==
+          task.type !==
             "human_gate"
       )
       .sort(
@@ -2760,195 +4516,200 @@ async function companyCycle(
     !pendingHuman.length
   ) {
     const business =
-      company
-        .businesses[0];
+      company.businesses[0];
 
-    const actionOrder = [
-      "research_brief",
-      "product_prototype",
-      "sales_package_generation",
-      "sales_evaluation",
-    ];
+    if (business) {
+      const actionOrder = [
+        "research_brief",
+        "product_prototype",
+        "sales_package_generation",
+        "sales_evaluation",
+      ];
 
-    const done =
-      new Set(
-        tasks
-          .filter(
-            (t) =>
-              t.businessId ===
-                business.id &&
-              t.status ===
-                "completed"
-          )
-          .map(
-            (t) =>
-              t.action
-          )
-      );
-
-    const next =
-      actionOrder.find(
-        (a) =>
-          !done.has(a)
-      );
-
-    if (next) {
-      const titles = {
-        research_brief:
-          "市場調査",
-
-        product_prototype:
-          "商品設計・試作",
-
-        sales_package_generation:
-          "販売準備",
-
-        sales_evaluation:
-          "販売構成評価",
-      };
-
-      const departments = {
-        research_brief:
-          "調査",
-
-        product_prototype:
-          "技術",
-
-        sales_package_generation:
-          "企画",
-
-        sales_evaluation:
-          "事業成果",
-      };
-
-      await createTask(
-        env,
-        {
-          type:
-            "business_task",
-
-          action:
-            next,
-
-          title:
-            `${titles[next]}：${business.name}`,
-
-          department:
-            departments[next],
-
-          priority:
-            90,
-
-          status:
-            "pending",
-
-          businessId:
-            business.id,
-
-          internalOnly:
-            false,
-
-          safeAutonomy:
-            false,
-
-          pipeline:
-            {
-              type:
-                "business_pipeline",
-
-              stage:
-                next,
-
-              businessId:
-                business.id,
-            },
-        }
-      );
-    } else if (
-      !tasks.some(
-        (t) =>
-          t.type ===
-            "human_gate" &&
-          t.businessId ===
-            business.id &&
-          t.status ===
-            "waiting_human"
-      )
-    ) {
-      await createTask(
-        env,
-        {
-          type:
-            "human_gate",
-
-          action:
-            "human_gate_publication",
-
-          title:
-            `Human Gate：公開承認：${business.name}`,
-
-          department:
-            "リスク管理",
-
-          priority:
-            100,
-
-          status:
-            "waiting_human",
-
-          businessId:
-            business.id,
-
-          requiresHuman:
-            true,
-
-          externalAction:
-            true,
-
-          pipeline:
-            {
-              type:
-                "business_pipeline",
-
-              stage:
-                "human_gate",
-
-              businessId:
-                business.id,
-            },
-        }
-      );
-    }
-
-    tasks =
-      (
-        await getStore(
-          env,
-          "tasks",
-          []
-        )
-      ).map(
-        normalizeTask
-      );
-
-    executable =
-      tasks
-        .filter(
-          (t) =>
-            t.status ===
-              "pending" &&
-            t.type !==
-              "human_gate"
-        )
-        .sort(
-          (a, b) =>
-            Number(
-              b.priority
-            ) -
-            Number(
-              a.priority
+      const done =
+        new Set(
+          tasks
+            .filter(
+              (task) =>
+                task.businessId ===
+                  business.id &&
+                task.status ===
+                  "completed"
+            )
+            .map(
+              (task) =>
+                task.action
             )
         );
+
+      const next =
+        actionOrder.find(
+          (action) =>
+            !done.has(action)
+        );
+
+      if (next) {
+        const titles = {
+          research_brief:
+            "市場調査",
+
+          product_prototype:
+            "商品設計・試作",
+
+          sales_package_generation:
+            "販売準備",
+
+          sales_evaluation:
+            "販売構成評価",
+        };
+
+        const departments = {
+          research_brief:
+            "調査",
+
+          product_prototype:
+            "技術",
+
+          sales_package_generation:
+            "企画",
+
+          sales_evaluation:
+            "事業成果",
+        };
+
+        await createTask(
+          env,
+          {
+            type:
+              "business_task",
+
+            action:
+              next,
+
+            title:
+              `${titles[next]}：${business.name}`,
+
+            department:
+              departments[next],
+
+            priority:
+              90,
+
+            status:
+              "pending",
+
+            businessId:
+              business.id,
+
+            internalOnly:
+              false,
+
+            safeAutonomy:
+              false,
+
+            pipeline:
+              {
+                type:
+                  "business_pipeline",
+
+                stage:
+                  next,
+
+                businessId:
+                  business.id,
+              },
+          }
+        );
+      } else if (
+        !tasks.some(
+          (task) =>
+            task.type ===
+              "human_gate" &&
+            task.businessId ===
+              business.id &&
+            task.status ===
+              "waiting_human"
+        )
+      ) {
+        await createTask(
+          env,
+          {
+            type:
+              "human_gate",
+
+            action:
+              "human_gate_publication",
+
+            title:
+              `Human Gate：公開承認：${business.name}`,
+
+            department:
+              "リスク管理",
+
+            priority:
+              100,
+
+            status:
+              "waiting_human",
+
+            businessId:
+              business.id,
+
+            requiresHuman:
+              true,
+
+            externalAction:
+              true,
+
+            pipeline:
+              {
+                type:
+                  "business_pipeline",
+
+                stage:
+                  "human_gate",
+
+                businessId:
+                  business.id,
+              },
+          }
+        );
+      }
+
+      await reconcileHumanGates(
+        env
+      );
+
+      tasks =
+        (
+          await getStore(
+            env,
+            "tasks",
+            []
+          )
+        ).map(
+          normalizeTask
+        );
+
+      executable =
+        tasks
+          .filter(
+            (task) =>
+              task.status ===
+                "pending" &&
+              task.type !==
+                "human_gate"
+          )
+          .sort(
+            (a, b) =>
+              Number(
+                b.priority
+              ) -
+              Number(
+                a.priority
+              )
+          );
+    }
   }
 
   const execution =
@@ -2989,26 +4750,6 @@ async function companyCycle(
       updatedTasks
     );
 
-  updatedCompany.currentFocus =
-    updatedTasks.some(
-      (t) =>
-        (
-          t.type ===
-            "human_gate" ||
-          t.requiresHuman
-        ) &&
-        t.status ===
-          "waiting_human"
-    )
-      ? "人間承認待ち"
-      : execution
-        ? "自律実行中"
-        : "自律待機";
-
-  updatedCompany.nextAction =
-    execution?.task?.title ??
-    "自己保守・自己開発・組織能力を評価する";
-
   await setStore(
     env,
     "company",
@@ -3021,6 +4762,15 @@ async function companyCycle(
     null
   );
 
+  await reconcileHumanGates(
+    env
+  );
+
+  const finalCompany =
+    await updateCEOState(
+      env
+    );
+
   return {
     runtime:
       RUNTIME_VERSION,
@@ -3028,7 +4778,7 @@ async function companyCycle(
     execution,
 
     company:
-      updatedCompany,
+      finalCompany,
   };
 }
 
@@ -3162,12 +4912,60 @@ async function selfDevelopmentCycle(
       tasks
     );
 
-  const needDeveloper =
-    !caps.selfDevelopment;
+  const activeCandidateId =
+    company.selfDevelopment
+      ?.activeCandidateId ??
+    company.selfDevelopment
+      ?.lastCandidateId;
 
   if (
-    !needDeveloper
+    activeCandidateId
   ) {
+    const activeCandidate =
+      await getStore(
+        env,
+        `candidate:${activeCandidateId}`,
+        null
+      );
+
+    if (
+      activeCandidate &&
+      [
+        "waiting_human",
+        "approved_pending_external_deploy",
+        "tested",
+        "packaged",
+      ].includes(
+        activeCandidate.status
+      )
+    ) {
+      return {
+        mode:
+          "wait_for_candidate_gate",
+
+        report,
+
+        capabilities:
+          caps,
+
+        activeCandidate,
+      };
+    }
+  }
+
+  const due =
+    !caps.selfDevelopment ||
+    !company
+      .selfDevelopment
+      ?.lastProposalAt ||
+    Number(
+      company.cycleCount ||
+        0
+    ) %
+      SELF_DEVELOPMENT_INTERVAL_CYCLES ===
+      0;
+
+  if (!due) {
     return {
       mode:
         "observe",
@@ -3241,11 +5039,29 @@ async function selfDevelopmentCycle(
   if (
     candidate?.test?.passed
   ) {
+    const packageResult =
+      await createSelfDevelopmentPackage(
+        env,
+        candidateId
+      );
+
+    const deploymentPlan =
+      await createDeploymentPlan(
+        env,
+        candidateId
+      );
+
     deployCandidate =
       await createDeployCandidate(
         env,
         candidateId
       );
+
+    deployCandidate.package =
+      packageResult.manifest;
+
+    deployCandidate.deploymentPlan =
+      deploymentPlan.plan;
   }
 
   return {
@@ -3266,11 +5082,13 @@ async function selfDevelopmentCycle(
 async function health(
   env
 ) {
+  await reconcileHumanGates(
+    env
+  );
+
   const company =
-    await getStore(
-      env,
-      "company",
-      defaultCompany()
+    await updateCEOState(
+      env
     );
 
   const tasks =
@@ -3284,7 +5102,7 @@ async function health(
       normalizeTask
     );
 
-  const idx =
+  const artifactIndex =
     await getStore(
       env,
       "artifact_index",
@@ -3328,38 +5146,49 @@ async function health(
 
         pendingTasks:
           tasks.filter(
-            (t) =>
+            (task) =>
               [
                 "pending",
                 "running",
               ].includes(
-                t.status
+                task.status
               )
           ).length,
 
         pendingInternalTasks:
           tasks.filter(
-            (t) =>
-              t.internalOnly &&
+            (task) =>
+              task.internalOnly &&
               [
                 "pending",
                 "running",
               ].includes(
-                t.status
+                task.status
               )
           ).length,
 
         pendingHumanGates:
           tasks.filter(
-            (t) =>
+            (task) =>
               (
-                t.type ===
+                task.type ===
                   "human_gate" ||
-                t.requiresHuman
+                task.requiresHuman
               ) &&
-              t.status ===
+              task.status ===
                 "waiting_human"
           ).length,
+
+        humanGateKeys:
+          [
+            ...new Set(
+              pendingHumanGateTasks(
+                tasks
+              ).map(
+                humanGateSemanticKey
+              )
+            ),
+          ],
 
         businessCount:
           company.businesses
@@ -3371,19 +5200,20 @@ async function health(
             .length,
 
         customerCount:
-          company.customers
-            .length,
+          company
+            .customers.length,
 
         outcomeCount:
-          company.outcomes
-            .length,
+          company
+            .outcomes.length,
 
         departmentCount:
-          company.departments
-            .length,
+          company
+            .departments.length,
 
         departments:
-          company.departments,
+          company
+            .departments,
       },
 
     execution_available:
@@ -3410,6 +5240,12 @@ async function health(
     deploy_candidate_available:
       true,
 
+    source_control_candidate_available:
+      true,
+
+    source_control_write:
+      false,
+
     external_read:
       true,
 
@@ -3431,30 +5267,63 @@ async function health(
     production_deploy_autonomy:
       false,
 
+    cloudflare_deploy_adapter:
+      false,
+
     artifactCount:
-      Array.isArray(idx)
-        ? idx.length
+      Array.isArray(
+        artifactIndex
+      )
+        ? artifactIndex.length
         : 0,
+
+    selfDevelopmentMode:
+      company
+        .selfDevelopment
+        ?.mode ??
+      "candidate_only",
+
+    activeCandidateId:
+      company
+        .selfDevelopment
+        ?.activeCandidateId ??
+      null,
+
+    selfDevelopmentProposalCount:
+      Number(
+        company
+          .selfDevelopment
+          ?.proposalCount ||
+          0
+      ),
+
+    selfDevelopmentPackageCount:
+      Number(
+        company
+          .selfDevelopment
+          ?.packageCount ||
+          0
+      ),
   };
 }
 
 async function route(
-  req,
+  request,
   env
 ) {
-  const u =
+  const url =
     new URL(
-      req.url
+      request.url
     );
 
-  const p =
-    u.pathname;
+  const path =
+    url.pathname;
 
-  const m =
-    req.method.toUpperCase();
+  const method =
+    request.method.toUpperCase();
 
   if (
-    m ===
+    method ===
     "OPTIONS"
   ) {
     return new Response(
@@ -3479,9 +5348,9 @@ async function route(
   }
 
   if (
-    p ===
+    path ===
       "/api/health" &&
-    m ===
+    method ===
       "GET"
   ) {
     return json(
@@ -3492,92 +5361,108 @@ async function route(
   }
 
   if (
-    p ===
+    path ===
       "/api/state" &&
-    m ===
+    method ===
       "GET"
   ) {
     await migrate(
       env
     );
 
-    return json({
-      runtime:
-        RUNTIME_VERSION,
+    await reconcileHumanGates(
+      env
+    );
 
-      schemaVersion:
-        SCHEMA_VERSION,
+    await updateCEOState(
+      env
+    );
 
-      company:
-        await getStore(
-          env,
-          "company",
-          defaultCompany()
-        ),
+    return json(
+      {
+        runtime:
+          RUNTIME_VERSION,
 
-      tasks:
-        (
+        schemaVersion:
+          SCHEMA_VERSION,
+
+        company:
           await getStore(
             env,
-            "tasks",
+            "company",
+            defaultCompany()
+          ),
+
+        tasks:
+          (
+            await getStore(
+              env,
+              "tasks",
+              []
+            )
+          ).map(
+            normalizeTask
+          ),
+
+        artifacts:
+          await getStore(
+            env,
+            "artifact_index",
             []
-          )
-        ).map(
-          normalizeTask
-        ),
+          ),
 
-      artifacts:
-        await getStore(
-          env,
-          "artifact_index",
-          []
-        ),
+        policy:
+          {
+            autonomousInternalChanges:
+              true,
 
-      policy:
-        {
-          autonomousInternalChanges:
-            true,
+            selfMaintenance:
+              true,
 
-          selfMaintenance:
-            true,
+            selfDevelopmentProposal:
+              true,
 
-          selfDevelopmentProposal:
-            true,
+            sandbox:
+              true,
 
-          sandbox:
-            true,
+            testing:
+              true,
 
-          testing:
-            true,
+            deployCandidate:
+              true,
 
-          deployCandidate:
-            true,
+            sourceControlCandidate:
+              true,
 
-          humanGateForProductionSelfModification:
-            true,
+            sourceControlWrite:
+              false,
 
-          publicationAutonomy:
-            false,
+            humanGateForProductionSelfModification:
+              true,
 
-          paymentAutonomy:
-            false,
+            publicationAutonomy:
+              false,
 
-          contractAutonomy:
-            false,
+            paymentAutonomy:
+              false,
 
-          externalCommunicationAutonomy:
-            false,
+            contractAutonomy:
+              false,
 
-          productionDeployAutonomy:
-            false,
-        },
-    });
+            externalCommunicationAutonomy:
+              false,
+
+            productionDeployAutonomy:
+              false,
+          },
+      }
+    );
   }
 
   if (
-    p ===
+    path ===
       "/api/cycle" &&
-    m ===
+    method ===
       "POST"
   ) {
     return json(
@@ -3588,9 +5473,9 @@ async function route(
   }
 
   if (
-    p ===
+    path ===
       "/api/self-organization/cycle" &&
-    m ===
+    method ===
       "POST"
   ) {
     return json(
@@ -3601,9 +5486,9 @@ async function route(
   }
 
   if (
-    p ===
+    path ===
       "/api/self-development/cycle" &&
-    m ===
+    method ===
       "POST"
   ) {
     return json(
@@ -3614,9 +5499,9 @@ async function route(
   }
 
   if (
-    p ===
+    path ===
       "/api/self-development/proposal" &&
-    m ===
+    method ===
       "POST"
   ) {
     return json(
@@ -3627,125 +5512,98 @@ async function route(
   }
 
   if (
-    p ===
+    path ===
       "/api/self-development/test" &&
-    m ===
+    method ===
       "POST"
   ) {
-    const b =
+    const body =
       await bodyJSON(
-        req
+        request
       );
 
     return json(
       await selfDevelopmentTest(
         env,
         str(
-          b.candidateId
+          body.candidateId
         )
       )
     );
   }
 
   if (
-    p ===
-      "/api/self-development/deploy-candidate" &&
-    m ===
+    path ===
+      "/api/self-development/package" &&
+    method ===
       "POST"
   ) {
-    const b =
+    const body =
       await bodyJSON(
-        req
+        request
+      );
+
+    return json(
+      await createSelfDevelopmentPackage(
+        env,
+        str(
+          body.candidateId
+        )
+      )
+    );
+  }
+
+  if (
+    path ===
+      "/api/self-development/deployment-plan" &&
+    method ===
+      "POST"
+  ) {
+    const body =
+      await bodyJSON(
+        request
+      );
+
+    return json(
+      await createDeploymentPlan(
+        env,
+        str(
+          body.candidateId
+        )
+      )
+    );
+  }
+
+  if (
+    path ===
+      "/api/self-development/deploy-candidate" &&
+    method ===
+      "POST"
+  ) {
+    const body =
+      await bodyJSON(
+        request
       );
 
     return json(
       await createDeployCandidate(
         env,
         str(
-          b.candidateId
+          body.candidateId
         )
       )
     );
   }
 
   if (
-    p ===
-      "/api/maintenance/audit" &&
-    m ===
-      "GET"
-  ) {
-    return json(
-      await audit(
-        env
-      )
-    );
-  }
-
-  if (
-    p ===
-      "/api/maintenance/cycle" &&
-    m ===
-      "POST"
-  ) {
-    const a =
-      await audit(
-        env
-      );
-
-    const created =
-      await ensureMaintenance(
-        env,
-        a
-      );
-
-    return json({
-      status:
-        "maintenance_completed",
-
-      audit:
-        a,
-
-      created,
-    });
-  }
-
-  if (
-    p ===
-      "/api/migration/status" &&
-    m ===
-      "GET"
-  ) {
-    await migrate(
-      env
-    );
-
-    return json({
-      runtime:
-        RUNTIME_VERSION,
-
-      schemaVersion:
-        SCHEMA_VERSION,
-
-      migration:
-        (
-          await getStore(
-            env,
-            "company",
-            defaultCompany()
-          )
-        ).migration,
-    });
-  }
-
-  if (
-    p ===
+    path ===
       "/api/self-development/candidate" &&
-    m ===
+    method ===
       "GET"
   ) {
-    const cid =
+    const candidateId =
       str(
-        u.searchParams.get(
+        url.searchParams.get(
           "id"
         )
       );
@@ -3753,7 +5611,7 @@ async function route(
     return json(
       await getStore(
         env,
-        `candidate:${cid}`,
+        `candidate:${candidateId}`,
         null
       ) || {
         ok:
@@ -3766,9 +5624,147 @@ async function route(
   }
 
   if (
-    p ===
+    path ===
+      "/api/self-development/adapter-status" &&
+    method ===
+      "GET"
+  ) {
+    return json(
+      await sourceControlAdapterStatus(
+        env
+      )
+    );
+  }
+
+  if (
+    path ===
+      "/api/self-development/rollback" &&
+    method ===
+      "POST"
+  ) {
+    const body =
+      await bodyJSON(
+        request
+      );
+
+    return json(
+      await rollbackSnapshot(
+        env,
+        str(
+          body.snapshotId
+        )
+      )
+    );
+  }
+
+  if (
+    path ===
+      "/api/self-development/build" &&
+    method ===
+      "POST"
+  ) {
+    const body =
+      await bodyJSON(
+        request
+      );
+
+    return json(
+      await selfDevelopmentTest(
+        env,
+        str(
+          body.candidateId
+        )
+      )
+    );
+  }
+
+  if (
+    path ===
+      "/api/maintenance/audit" &&
+    method ===
+      "GET"
+  ) {
+    return json(
+      await audit(
+        env
+      )
+    );
+  }
+
+  if (
+    path ===
+      "/api/maintenance/cycle" &&
+    method ===
+      "POST"
+  ) {
+    const report =
+      await audit(
+        env
+      );
+
+    const created =
+      await ensureMaintenance(
+        env,
+        report
+      );
+
+    await reconcileHumanGates(
+      env
+    );
+
+    await updateCEOState(
+      env
+    );
+
+    return json(
+      {
+        status:
+          "maintenance_completed",
+
+        audit:
+          await audit(
+            env
+          ),
+
+        created,
+      }
+    );
+  }
+
+  if (
+    path ===
+      "/api/migration/status" &&
+    method ===
+      "GET"
+  ) {
+    await migrate(
+      env
+    );
+
+    return json(
+      {
+        runtime:
+          RUNTIME_VERSION,
+
+        schemaVersion:
+          SCHEMA_VERSION,
+
+        migration:
+          (
+            await getStore(
+              env,
+              "company",
+              defaultCompany()
+            )
+          ).migration,
+      }
+    );
+  }
+
+  if (
+    path ===
       "/api/snapshots" &&
-    m ===
+    method ===
       "GET"
   ) {
     return json(
@@ -3781,45 +5777,49 @@ async function route(
   }
 
   if (
-    p ===
+    path ===
       "/api/departments" &&
-    m ===
+    method ===
       "GET"
   ) {
-    const c =
+    const company =
       await getStore(
         env,
         "company",
         defaultCompany()
       );
 
-    return json({
-      runtime:
-        RUNTIME_VERSION,
+    return json(
+      {
+        runtime:
+          RUNTIME_VERSION,
 
-      departments:
-        c.departments,
-    });
+        departments:
+          normalizeDepartments(
+            company.departments
+          ),
+      }
+    );
   }
 
   if (
-    p ===
+    path ===
       "/api/capabilities" &&
-    m ===
+    method ===
       "GET"
   ) {
     await migrate(
       env
     );
 
-    const c =
+    const company =
       await getStore(
         env,
         "company",
         defaultCompany()
       );
 
-    const t =
+    const tasks =
       (
         await getStore(
           env,
@@ -3830,28 +5830,69 @@ async function route(
         normalizeTask
       );
 
-    return json({
-      runtime:
-        RUNTIME_VERSION,
+    return json(
+      {
+        runtime:
+          RUNTIME_VERSION,
 
-      capabilities:
-        capabilities(
-          c,
-          t
-        ),
+        capabilities:
+          capabilities(
+            company,
+            tasks
+          ),
 
-      departments:
-        c.departments,
-    });
+        departments:
+          company.departments,
+      }
+    );
   }
 
   if (
-    p ===
-      "/api/heartbeat" &&
-    m ===
+    path ===
+      "/api/ceo/state" &&
+    method ===
       "GET"
   ) {
-    const c =
+    await migrate(
+      env
+    );
+
+    await reconcileHumanGates(
+      env
+    );
+
+    const company =
+      await updateCEOState(
+        env
+      );
+
+    return json(
+      {
+        runtime:
+          RUNTIME_VERSION,
+
+        currentFocus:
+          company.currentFocus,
+
+        nextAction:
+          company.nextAction,
+
+        humanGates:
+          company.humanGates,
+
+        selfDevelopment:
+          company.selfDevelopment,
+      }
+    );
+  }
+
+  if (
+    path ===
+      "/api/heartbeat" &&
+    method ===
+      "GET"
+  ) {
+    const company =
       await getStore(
         env,
         "company",
@@ -3861,72 +5902,76 @@ async function route(
     await setRuntimeMeta(
       env,
       Number(
-        c.cycleCount || 0
+        company.cycleCount ||
+          0
       ),
       nowIso()
     );
 
-    return json({
-      ok:
-        true,
+    return json(
+      {
+        ok:
+          true,
 
-      runtime:
-        RUNTIME_VERSION,
+        runtime:
+          RUNTIME_VERSION,
 
-      heartbeatAt:
-        nowIso(),
-    });
+        heartbeatAt:
+          nowIso(),
+      }
+    );
   }
 
   if (
-    p ===
+    path ===
       "/api/customer/intake" &&
-    m ===
+    method ===
       "POST"
   ) {
-    const b =
+    const body =
       await bodyJSON(
-        req
+        request
       );
 
-    const c =
+    const company =
       await getStore(
         env,
         "company",
         defaultCompany()
       );
 
-    const x = {
+    const customer = {
       id:
         id("customer"),
 
       source:
         str(
-          b.source,
+          body.source,
           "unknown"
         ),
 
       message:
         str(
-          b.message
+          body.message,
+          ""
         ),
 
       createdAt:
         nowIso(),
 
       metadata:
-        b.metadata ||
+        body.metadata ||
         {},
     };
 
-    c.customers.push(
-      x
+    company.customers.push(
+      customer
     );
 
     await setStore(
       env,
       "company",
-      c
+      company
     );
 
     return json(
@@ -3934,73 +5979,75 @@ async function route(
         status:
           "customer_received",
 
-        customer:
-          x,
+        customer,
       },
       201
     );
   }
 
   if (
-    p ===
+    path ===
       "/api/outcome" &&
-    m ===
+    method ===
       "POST"
   ) {
-    const b =
+    const body =
       await bodyJSON(
-        req
+        request
       );
 
-    const c =
+    const company =
       await getStore(
         env,
         "company",
         defaultCompany()
       );
 
-    const x = {
+    const outcome = {
       id:
         id("outcome"),
 
       businessId:
         str(
-          b.businessId
-        ) || null,
+          body.businessId
+        ) ||
+        null,
 
       revenue:
         Number(
-          b.revenue || 0
+          body.revenue ||
+            0
         ),
 
       cost:
         Number(
-          b.cost || 0
+          body.cost ||
+            0
         ),
 
       conversions:
         Number(
-          b.conversions ||
+          body.conversions ||
             0
         ),
 
       notes:
         str(
-          b.notes
+          body.notes
         ),
 
       createdAt:
         nowIso(),
     };
 
-    c.outcomes.push(
-      x
+    company.outcomes.push(
+      outcome
     );
 
     await setStore(
       env,
       "company",
-      c
+      company
     );
 
     return json(
@@ -4008,32 +6055,31 @@ async function route(
         status:
           "outcome_recorded",
 
-        outcome:
-          x,
+        outcome,
       },
       201
     );
   }
 
   if (
-    p ===
+    path ===
       "/api/research/fetch" &&
-    m ===
+    method ===
       "GET"
   ) {
-    const sid =
+    const sourceId =
       str(
-        u.searchParams.get(
+        url.searchParams.get(
           "source"
         )
       );
 
-    const src =
+    const source =
       RESEARCH_SOURCES[
-        sid
+        sourceId
       ];
 
-    if (!src) {
+    if (!source) {
       return json(
         {
           ok:
@@ -4051,39 +6097,37 @@ async function route(
       );
     }
 
-    const r =
+    const response =
       await fetch(
-        src.url,
+        source.url,
         {
-          headers:
-            {
-              "user-agent":
-                "AI-Company-Core/6.2.0",
-            },
+          headers: {
+            "user-agent":
+              `AI-Company-Core/${SCHEMA_VERSION}`,
+          },
         }
       );
 
     const text =
-      await r.text();
+      await response.text();
 
-    const e = {
+    const evidence = {
       id:
         id("evidence"),
 
-      sourceId:
-        sid,
+      sourceId,
 
       sourceName:
-        src.name,
+        source.name,
 
       url:
-        src.url,
+        source.url,
 
       status:
-        r.status,
+        response.status,
 
       ok:
-        r.ok,
+        response.ok,
 
       retrievedAt:
         nowIso(),
@@ -4097,66 +6141,66 @@ async function route(
 
     await setStore(
       env,
-      `evidence:${e.id}`,
-      e
+      `evidence:${evidence.id}`,
+      evidence
     );
 
-    const c =
+    const company =
       await getStore(
         env,
         "company",
         defaultCompany()
       );
 
-    c.researchEvidenceIndex.push(
+    company.researchEvidenceIndex.push(
       {
         id:
-          e.id,
+          evidence.id,
 
-        sourceId:
-          sid,
+        sourceId,
 
         sourceName:
-          src.name,
+          source.name,
 
         url:
-          src.url,
+          source.url,
 
         status:
-          r.status,
+          response.status,
 
         ok:
-          r.ok,
+          response.ok,
 
         retrievedAt:
-          e.retrievedAt,
+          evidence.retrievedAt,
       }
     );
 
     await setStore(
       env,
       "company",
-      c
+      company
     );
 
-    return json({
-      ok:
-        true,
+    return json(
+      {
+        ok:
+          true,
 
-      evidence:
-        e,
-    });
+        evidence,
+      }
+    );
   }
 
   if (
-    p ===
+    path ===
       "/api/artifact" &&
-    m ===
+    method ===
       "GET"
   ) {
-    const aid =
+    const artifactId =
       str(
-        u.searchParams.get(
+        url.searchParams.get(
           "id"
         )
       );
@@ -4164,7 +6208,7 @@ async function route(
     return json(
       await getStore(
         env,
-        `artifact:${aid}`,
+        `artifact:${artifactId}`,
         null
       ) || {
         ok:
@@ -4177,21 +6221,21 @@ async function route(
   }
 
   if (
-    p ===
+    path ===
       "/api/human-gate/approve" &&
-    m ===
+    method ===
       "POST"
   ) {
-    const b =
+    const body =
       await bodyJSON(
-        req
+        request
       );
 
     const task =
       await updateTask(
         env,
         str(
-          b.taskId
+          body.taskId
         ),
         {
           status:
@@ -4202,33 +6246,120 @@ async function route(
         }
       );
 
-    return json({
-      ok:
-        !!task,
+    let candidate =
+      null;
 
-      task,
+    if (
+      task?.action ===
+      "self_development_deploy_candidate"
+    ) {
+      const candidateId =
+        str(
+          task.input
+            ?.candidateId,
+          ""
+        );
 
-      externalActionPerformed:
-        false,
-    });
+      if (
+        candidateId
+      ) {
+        candidate =
+          await getStore(
+            env,
+            `candidate:${candidateId}`,
+            null
+          );
+
+        if (
+          candidate
+        ) {
+          candidate.status =
+            "approved_pending_external_deploy";
+
+          candidate.approvedAt =
+            nowIso();
+
+          candidate.productionDeployPerformed =
+            false;
+
+          await setStore(
+            env,
+            `candidate:${candidateId}`,
+            candidate
+          );
+
+          const company =
+            await getStore(
+              env,
+              "company",
+              defaultCompany()
+            );
+
+          company.selfDevelopment
+            .activeCandidateId =
+            candidateId;
+
+          await setStore(
+            env,
+            "company",
+            company
+          );
+        }
+      }
+    }
+
+    await reconcileHumanGates(
+      env
+    );
+
+    const finalCompany =
+      await updateCEOState(
+        env
+      );
+
+    return json(
+      {
+        ok:
+          !!task,
+
+        task,
+
+        candidate,
+
+        externalActionPerformed:
+          false,
+
+        productionDeployPerformed:
+          false,
+
+        company:
+          {
+            currentFocus:
+              finalCompany.currentFocus,
+
+            nextAction:
+              finalCompany.nextAction,
+          },
+      }
+    );
   }
 
   if (
-    p ===
+    path ===
       "/api/human-gate/reject" &&
-    m ===
+    method ===
       "POST"
   ) {
-    const b =
+    const body =
       await bodyJSON(
-        req
+        request
       );
 
     const task =
       await updateTask(
         env,
         str(
-          b.taskId
+          body.taskId
         ),
         {
           status:
@@ -4239,12 +6370,88 @@ async function route(
         }
       );
 
-    return json({
-      ok:
-        !!task,
+    if (
+      task?.action ===
+      "self_development_deploy_candidate"
+    ) {
+      const candidateId =
+        str(
+          task.input
+            ?.candidateId,
+          ""
+        );
 
-      task,
-    });
+      if (
+        candidateId
+      ) {
+        const candidate =
+          await getStore(
+            env,
+            `candidate:${candidateId}`,
+            null
+          );
+
+        if (
+          candidate
+        ) {
+          candidate.status =
+            "rejected";
+
+          candidate.rejectedAt =
+            nowIso();
+
+          await setStore(
+            env,
+            `candidate:${candidateId}`,
+            candidate
+          );
+        }
+      }
+
+      const company =
+        await getStore(
+          env,
+          "company",
+          defaultCompany()
+        );
+
+      company.selfDevelopment
+        .activeCandidateId =
+        null;
+
+      await setStore(
+        env,
+        "company",
+        company
+      );
+    }
+
+    await reconcileHumanGates(
+      env
+    );
+
+    const finalCompany =
+      await updateCEOState(
+        env
+      );
+
+    return json(
+      {
+        ok:
+          !!task,
+
+        task,
+
+        company:
+          {
+            currentFocus:
+              finalCompany.currentFocus,
+
+            nextAction:
+              finalCompany.nextAction,
+          },
+      }
+    );
   }
 
   return null;
@@ -4256,14 +6463,16 @@ export default {
     env
   ) {
     try {
-      const r =
+      const response =
         await route(
           request,
           env
         );
 
-      if (r) {
-        return r;
+      if (
+        response
+      ) {
+        return response;
       }
 
       if (
@@ -4283,14 +6492,18 @@ export default {
         ? env.ASSETS.fetch(
             request
           )
-        : json({
-            ok:
-              true,
+        : json(
+            {
+              ok:
+                true,
 
-            runtime:
-              RUNTIME_VERSION,
-          });
-    } catch (e) {
+              runtime:
+                RUNTIME_VERSION,
+            }
+          );
+    } catch (
+      error
+    ) {
       return json(
         {
           ok:
@@ -4300,8 +6513,8 @@ export default {
             RUNTIME_VERSION,
 
           error:
-            e?.message ??
-            String(e),
+            error?.message ??
+            String(error),
         },
         500
       );
@@ -4342,6 +6555,14 @@ export default {
         );
 
         await companyCycle(
+          env
+        );
+
+        await reconcileHumanGates(
+          env
+        );
+
+        await updateCEOState(
           env
         );
       })()

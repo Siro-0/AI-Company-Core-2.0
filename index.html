@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -10,13 +9,16 @@
 </head>
 <body>
   <main class="container">
+
     <h1>AI Company Core 2.0</h1>
     <p class="subtitle">システム動作確認</p>
 
+    <!-- 動作テスト -->
     <section class="panel">
       <p id="status" class="status">待機中</p>
 
       <label for="userInput">動作テスト入力</label>
+
       <input
         id="userInput"
         type="text"
@@ -33,10 +35,12 @@
       </div>
     </section>
 
+    <!-- タスク管理 -->
     <section class="panel task-panel">
       <h2>タスク管理</h2>
 
       <label for="taskInput">新しいタスク</label>
+
       <input
         id="taskInput"
         type="text"
@@ -49,14 +53,49 @@
 
       <div class="result-area">
         <h2>登録済みタスク</h2>
+
         <p id="taskCount">登録数：0件</p>
+
         <ul id="taskList"></ul>
+      </div>
+    </section>
+
+    <!-- Founder Room -->
+    <section class="panel founder-panel">
+      <h2>Founder Room</h2>
+
+      <p>
+        会社への提案・質問・相談を入力してください。
+      </p>
+
+      <label for="founderInput">
+        会社への相談
+      </label>
+
+      <textarea
+        id="founderInput"
+        rows="5"
+        placeholder="例：新しい事業としてゲームを作るのは面白くない？"
+      ></textarea>
+
+      <button
+        id="founderSubmitButton"
+        type="button"
+      >
+        会社に相談する
+      </button>
+
+      <div class="result-area">
+        <h2>協議記録</h2>
+
+        <ul id="founderLog"></ul>
       </div>
     </section>
 
     <footer>
       <p>AI Company Core 2.0 | Prototype</p>
     </footer>
+
   </main>
 </body>
 </html>

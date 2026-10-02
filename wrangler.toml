@@ -1,0 +1,16 @@
+name = "ai-company-core-2-0"
+main = "worker.js"
+compatibility_date = "2026-10-02"
+
+[assets]
+directory = "."
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ai-company-core"
+database_id = "54d4fd58-2a54-47af-b904-c76490a8876b"

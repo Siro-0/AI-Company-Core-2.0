@@ -12,7 +12,8 @@ const savedTasks = localStorage.getItem("aiCompanyTasks");
 let tasks = savedTasks ? JSON.parse(savedTasks) : [];
 
 /*
-  以前のデータを新しい状態管理に変換する
+  これまでに作ったタスクを
+  新しいデータ構造に合わせる
 */
 tasks = tasks.map(function (task) {
   let taskStatus = task.status;
@@ -24,7 +25,9 @@ tasks = tasks.map(function (task) {
   return {
     text: task.text,
     priority: task.priority || "通常",
-    status: taskStatus
+    status: taskStatus,
+    runCount: task.runCount || 0,
+    lastRunAt: task.lastRunAt || null
   };
 });
 
@@ -94,6 +97,16 @@ function getStatusText(taskStatus) {
   return "";
 }
 
+function formatRunTime(dateString) {
+  if (!dateString) {
+    return "まだ実行されていません";
+  }
+
+  const date = new Date(dateString);
+
+  return date.toLocaleString("ja-JP");
+}
+
 function renderTasks() {
   taskList.replaceChildren();
 
@@ -123,6 +136,14 @@ function renderTasks() {
       task.priority +
       "）" +
       getStatusText(task.status);
+
+    const historyText = document.createElement("small");
+
+    historyText.textContent =
+      "実行回数：" +
+      task.runCount +
+      "回 / 最終実行：" +
+      formatRunTime(task.lastRunAt);
 
     const editButton = document.createElement("button");
     editButton.textContent = "編集";
@@ -161,12 +182,15 @@ function renderTasks() {
 
       actionButton.addEventListener("click", function () {
         task.status = "running";
+        task.runCount += 1;
+        task.lastRunAt = new Date().toISOString();
 
         saveTasks();
         renderTasks();
 
         status.textContent = "タスクを実行中にしました";
-        result.textContent = "実行中：" + task.text;
+        result.textContent =
+          "実行中：" + task.text;
       });
     } else if (task.status === "running") {
       actionButton.textContent = "完了";
@@ -178,7 +202,8 @@ function renderTasks() {
         renderTasks();
 
         status.textContent = "タスクを完了にしました";
-        result.textContent = "完了：" + task.text;
+        result.textContent =
+          "完了：" + task.text;
       });
     } else {
       actionButton.textContent = "未完了に戻す";
@@ -190,7 +215,8 @@ function renderTasks() {
         renderTasks();
 
         status.textContent = "タスクを未完了に戻しました";
-        result.textContent = "未完了：" + task.text;
+        result.textContent =
+          "未完了：" + task.text;
       });
     }
 
@@ -212,6 +238,7 @@ function renderTasks() {
     });
 
     item.appendChild(taskText);
+    item.appendChild(historyText);
     item.appendChild(editButton);
     item.appendChild(actionButton);
     item.appendChild(deleteButton);
@@ -219,7 +246,8 @@ function renderTasks() {
     taskList.appendChild(item);
   });
 
-  taskCount.textContent = "登録数：" + tasks.length + "件";
+  taskCount.textContent =
+    "登録数：" + tasks.length + "件";
 }
 
 addTaskButton.addEventListener("click", function () {
@@ -233,7 +261,9 @@ addTaskButton.addEventListener("click", function () {
   tasks.push({
     text: taskText,
     priority: prioritySelect.value,
-    status: "pending"
+    status: "pending",
+    runCount: 0,
+    lastRunAt: null
   });
 
   saveTasks();

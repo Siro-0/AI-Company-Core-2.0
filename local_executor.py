@@ -8,11 +8,13 @@ Company Core 3.0 / Real Local Executor
 - PC上で定義済みの安全なローカル処理を実行する
 - 結果と成果物のパスをCompany Coreへ返す
 - company_workspace/reports に実行レポートを保存する
+- company_workspace/sales に販売準備ドラフトを保存する
 
 安全設計:
 - 任意のシェルコマンドは実行しない
 - 127.0.0.1 でのみ待ち受ける
 - 実行処理はこのファイル内で定義されたものだけ
+- 外部への公開・送信・決済・購入は行わない
 """
 
 from __future__ import annotations
@@ -23,10 +25,7 @@ import sys
 import traceback
 
 from datetime import datetime, timezone
-from http.server import (
-    BaseHTTPRequestHandler,
-    ThreadingHTTPServer,
-)
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -54,12 +53,23 @@ REPORTS_DIR = (
     / "reports"
 )
 
+SALES_DIR = (
+    BASE_DIR
+    / "sales"
+)
+
+
 BASE_DIR.mkdir(
     parents=True,
     exist_ok=True
 )
 
 REPORTS_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+SALES_DIR.mkdir(
     parents=True,
     exist_ok=True
 )
@@ -115,6 +125,24 @@ def safe_filename(
     return value[:80]
 
 
+def relative_to_cwd(
+    path: Path
+) -> str:
+    """
+    CWDから見た相対パスを安全に返す。
+    """
+
+    cwd = Path.cwd().resolve()
+    resolved = path.resolve()
+
+    try:
+        return str(
+            resolved.relative_to(cwd)
+        )
+    except ValueError:
+        return str(resolved)
+
+
 # =====================================================
 # Report Writer
 # =====================================================
@@ -156,11 +184,7 @@ def write_report(
         encoding="utf-8"
     )
 
-    return str(
-        path.relative_to(
-            Path.cwd()
-        )
-    )
+    return relative_to_cwd(path)
 
 
 # =====================================================
@@ -193,8 +217,7 @@ def workspace_summary() -> dict[str, Any]:
 
         try:
             total_bytes += (
-                path.stat()
-                .st_size
+                path.stat().st_size
             )
 
         except OSError:
@@ -260,9 +283,7 @@ def run_workspace_analysis(
             extension,
             count
         ) in sorted(
-            summary[
-                "extensions"
-            ].items()
+            summary["extensions"].items()
         ):
 
             body += (
@@ -362,6 +383,326 @@ def run_business_validation(
 
         "metrics":
             summary
+    }
+
+
+# =====================================================
+# Task: Sales Preparation Package
+# =====================================================
+
+def run_sales_package(
+    task: dict[str, Any]
+) -> dict[str, Any]:
+    """
+    販売準備用のドラフトパッケージを生成する。
+
+    生成するもの:
+    - product.json
+    - sales_page.md
+    - pricing.md
+    - manifest.json
+    - delivery/README.md
+
+    この処理では、
+    実際の外部公開・決済・購入受付・メール送信・
+    外部サービスへのデータ送信は行わない。
+    """
+
+    raw_title = str(
+        task.get(
+            "title",
+            ""
+        )
+    ).strip()
+
+    product_name = raw_title
+
+    if "販売準備:" in raw_title:
+        product_name = (
+            raw_title.split(
+                "販売準備:",
+                1
+            )[1].strip()
+        )
+
+    if not product_name:
+        product_name = "未定義商品"
+
+    timestamp = datetime.now().strftime(
+        "%Y%m%d_%H%M%S"
+    )
+
+    package_name = (
+        f"{timestamp}_"
+        f"{safe_filename(product_name, 'product')}"
+    )
+
+    package_dir = (
+        SALES_DIR
+        / package_name
+    )
+
+    delivery_dir = (
+        package_dir
+        / "delivery"
+    )
+
+    package_dir.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    delivery_dir.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    # ---------------------------------------------
+    # Product specification
+    # ---------------------------------------------
+
+    product_data = {
+        "product_name":
+            product_name,
+
+        "status":
+            "販売準備ドラフト",
+
+        "created_at":
+            iso_now(),
+
+        "executor":
+            "Python Local Executor",
+
+        "external_actions":
+            False,
+
+        "description":
+            "AI Company Coreが作成した販売準備用ドラフトです。",
+
+        "target_customer":
+            "今後の市場検証によって具体化する",
+
+        "problem":
+            "実際の顧客調査後に確定する",
+
+        "value_proposition":
+            "実際の利用価値を小規模検証して確定する"
+    }
+
+    product_path = (
+        package_dir
+        / "product.json"
+    )
+
+    product_path.write_text(
+        json.dumps(
+            product_data,
+            ensure_ascii=False,
+            indent=2
+        ),
+        encoding="utf-8"
+    )
+
+    # ---------------------------------------------
+    # Sales page draft
+    # ---------------------------------------------
+
+    sales_page = f"""# {product_name}
+
+## この商品について
+
+{product_name} の販売ページ草案です。
+
+この文書は販売準備用のドラフトであり、
+実際の公開前に人間による確認が必要です。
+
+## 解決したい課題
+
+実際の顧客調査・市場検証によって確定します。
+
+## 提供する価値
+
+利用者にとって具体的な価値があるかを
+小規模な検証によって確認します。
+
+## 想定ユーザー
+
+今後の顧客調査で具体化します。
+
+## 提供内容
+
+販売する具体的な内容は、
+商品検証と実装結果をもとに確定します。
+
+## 価格
+
+価格案は別ファイルの `pricing.md` に記載しています。
+
+## 利用方法
+
+購入後の具体的な利用手順・納品形式は、
+商品仕様確定後に決定します。
+
+## 注意
+
+このページは販売準備用ドラフトです。
+
+まだ外部公開・決済・購入受付は行っていません。
+"""
+
+    sales_page_path = (
+        package_dir
+        / "sales_page.md"
+    )
+
+    sales_page_path.write_text(
+        sales_page,
+        encoding="utf-8"
+    )
+
+    # ---------------------------------------------
+    # Pricing draft
+    # ---------------------------------------------
+
+    pricing = f"""# {product_name} - Pricing Draft
+
+## 状態
+
+販売価格の検討段階です。
+
+## 初期価格案
+
+- 仮価格：小規模検証後に決定
+- 無料検証：必要に応じて実施
+- 本販売価格：顧客価値と提供コストから決定
+
+## 判断材料
+
+1. 顧客が感じる価値
+2. 提供コスト
+3. 継続運営コスト
+4. 競合価格
+5. 実際の購入意向
+
+## 注意
+
+このファイルは価格検討用のドラフトです。
+実際の価格設定や販売開始は行っていません。
+"""
+
+    pricing_path = (
+        package_dir
+        / "pricing.md"
+    )
+
+    pricing_path.write_text(
+        pricing,
+        encoding="utf-8"
+    )
+
+    # ---------------------------------------------
+    # Delivery draft
+    # ---------------------------------------------
+
+    delivery = """# Delivery Draft
+
+## 想定納品方法
+
+商品形式に応じて以下から決定する。
+
+- ダウンロード型
+- Webサービス型
+- ドキュメント型
+- 個別提供型
+
+## 現在の状態
+
+まだ実際の購入者への納品は行いません。
+
+Human Gateで承認されるまで、
+外部サービスへの公開や顧客への送信は行いません。
+"""
+
+    delivery_path = (
+        delivery_dir
+        / "README.md"
+    )
+
+    delivery_path.write_text(
+        delivery,
+        encoding="utf-8"
+    )
+
+    # ---------------------------------------------
+    # Manifest
+    # ---------------------------------------------
+
+    manifest = {
+        "product_name":
+            product_name,
+
+        "status":
+            "draft",
+
+        "created_at":
+            iso_now(),
+
+        "files": [
+            "product.json",
+            "sales_page.md",
+            "pricing.md",
+            "manifest.json",
+            "delivery/README.md"
+        ],
+
+        "next_step":
+            "市場検証 → 商品改善 → Human Gate → 公開",
+
+        "external_execution":
+            False
+    }
+
+    manifest_path = (
+        package_dir
+        / "manifest.json"
+    )
+
+    manifest_path.write_text(
+        json.dumps(
+            manifest,
+            ensure_ascii=False,
+            indent=2
+        ),
+        encoding="utf-8"
+    )
+
+    output_path = relative_to_cwd(
+        package_dir
+    )
+
+    return {
+
+        "action":
+            "sales_package_generation",
+
+        "output_path":
+            output_path,
+
+        "result":
+            "販売準備パッケージのドラフトを生成しました。",
+
+        "metrics": {
+
+            "product_name":
+                product_name,
+
+            "file_count":
+                5,
+
+            "external_execution":
+                False
+        }
     }
 
 
@@ -504,6 +845,25 @@ def execute_task(
         )
 
     # ---------------------------------------------
+    # Sales Preparation
+    # ---------------------------------------------
+
+    if any(
+        keyword in title
+        for keyword in (
+            "販売準備",
+            "販売ページ",
+            "商品化",
+            "価格案",
+            "セールス",
+        )
+    ):
+
+        return run_sales_package(
+            task
+        )
+
+    # ---------------------------------------------
     # Business
     # ---------------------------------------------
 
@@ -541,7 +901,7 @@ class ExecutorHandler(
 ):
 
     server_version = (
-        "AICompanyCoreLocalExecutor/1.0"
+        "AICompanyCoreLocalExecutor/1.1"
     )
 
     # ---------------------------------------------
@@ -640,6 +1000,15 @@ class ExecutorHandler(
 
                     "executor":
                         "Python Local Executor",
+
+                    "version":
+                        "1.1",
+
+                    "sales_preparation":
+                        True,
+
+                    "external_actions":
+                        False,
 
                     "time":
                         iso_now()
@@ -820,7 +1189,11 @@ def main() -> None:
     )
 
     print(
-        "任意のシェルコマンドは実行しません。"
+        "Sales preparation: 有効"
+    )
+
+    print(
+        "外部公開・決済・購入受付・任意のシェルコマンドは実行しません。"
     )
 
     print(
@@ -843,5 +1216,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-
     main()

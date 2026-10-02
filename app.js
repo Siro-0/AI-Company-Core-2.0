@@ -12,8 +12,8 @@ const savedTasks = localStorage.getItem("aiCompanyTasks");
 let tasks = savedTasks ? JSON.parse(savedTasks) : [];
 
 /*
-  以前のタスクに優先度がなくても
-  「通常」として扱う
+  以前のタスクに必要な情報がなくても
+  初期値を入れて正常に扱う
 */
 tasks = tasks.map(function (task) {
   return {
@@ -69,7 +69,23 @@ function renderTasks() {
   taskList.replaceChildren();
 
   const sortedTasks = [...tasks].sort(function (a, b) {
-    return getPriorityValue(a.priority) - getPriorityValue(b.priority);
+    const priorityDifference =
+      getPriorityValue(a.priority) -
+      getPriorityValue(b.priority);
+
+    if (priorityDifference !== 0) {
+      return priorityDifference;
+    }
+
+    /*
+      同じ優先度なら
+      未完了 → 完了
+    */
+    if (a.completed !== b.completed) {
+      return a.completed ? 1 : -1;
+    }
+
+    return 0;
   });
 
   sortedTasks.forEach(function (task) {

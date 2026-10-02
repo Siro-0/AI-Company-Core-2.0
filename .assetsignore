@@ -1,0 +1,9 @@
+worker.js
+wrangler.toml
+schema.sql
+local_executor.py
+README.md
+.assetsignore
+.git/**
+.github/**
+company_workspace/**

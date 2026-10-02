@@ -1,30 +1,29 @@
 const STORAGE_KEYS = {
   tasks: "aiCompanyTasks",
-  founder: "aiCompanyFounderMessages"
+  founder: "aiCompanyFounderMessages",
+  company: "aiCompanyCompanyState",
+  engineLog: "aiCompanyEngineLog"
 };
 
 const DEPARTMENTS = [
   {
-    id: "planning",
     name: "企画",
     description: "事業性・顧客価値・方向性を確認"
   },
   {
-    id: "technology",
     name: "技術",
     description: "実装可能性・開発負荷・技術課題を確認"
   },
   {
-    id: "finance",
     name: "財務",
     description: "収益性・コスト・資金面を確認"
   },
   {
-    id: "risk",
     name: "リスク管理",
     description: "安全・法務・規約・運営リスクを確認"
   }
 ];
+
 
 /* =========================
    DOM
@@ -48,14 +47,35 @@ const systemStatus =
 const ceoStatus =
   document.getElementById("ceoStatus");
 
-const localAiStatus =
-  document.getElementById("localAiStatus");
+const engineStatus =
+  document.getElementById("engineStatus");
 
 const executorStatus =
   document.getElementById("executorStatus");
 
 const apiStatus =
   document.getElementById("apiStatus");
+
+const companyGoal =
+  document.getElementById("companyGoal");
+
+const companyMode =
+  document.getElementById("companyMode");
+
+const runCycleButton =
+  document.getElementById("runCycleButton");
+
+const startEngineButton =
+  document.getElementById("startEngineButton");
+
+const stopEngineButton =
+  document.getElementById("stopEngineButton");
+
+const engineSummary =
+  document.getElementById("engineSummary");
+
+const engineLog =
+  document.getElementById("engineLog");
 
 const taskInput =
   document.getElementById("taskInput");
@@ -87,22 +107,22 @@ const ceoCouncilList =
 const departmentStatus =
   document.getElementById("departmentStatus");
 
+
 /* =========================
    UTILITY
 ========================= */
 
 function loadJSON(key, fallback) {
   try {
-    const raw = localStorage.getItem(key);
+    const raw =
+      localStorage.getItem(key);
 
-    if (!raw) {
-      return fallback;
-    }
+    return raw
+      ? JSON.parse(raw)
+      : fallback;
 
-    const parsed = JSON.parse(raw);
-
-    return parsed;
   } catch (error) {
+
     console.error(
       "データ読み込みエラー:",
       key,
@@ -120,667 +140,110 @@ function saveJSON(key, value) {
   );
 }
 
-function formatDate(dateString) {
-  if (!dateString) {
-    return "まだありません";
-  }
-
-  return new Date(
-    dateString
-  ).toLocaleString("ja-JP");
+function formatDate(value) {
+  return value
+    ? new Date(value).toLocaleString("ja-JP")
+    : "まだありません";
 }
 
 function setStatus(message) {
-  status.textContent = message;
+  status.textContent =
+    message;
 }
+
 
 /* =========================
-   LOCAL AI
+   COMPANY STATE
 ========================= */
 
-const localAISessions = new Map();
-
-let localAIAvailability = "checking";
-
-async function checkLocalAI() {
-  if (!("LanguageModel" in window)) {
-    localAIAvailability = "unsupported";
-    localAiStatus.textContent = "未対応";
-    return;
-  }
-
-  try {
-    const availability =
-      await LanguageModel.availability({
-        expectedInputs: [
-          {
-            type: "text",
-            languages: ["ja"]
-          }
-        ],
-        expectedOutputs: [
-          {
-            type: "text",
-            languages: ["ja"]
-          }
-        ]
-      });
-
-    localAIAvailability =
-      availability;
-
-    const statusMap = {
-      available: "使用可能",
-      downloadable: "要ダウンロード",
-      downloading: "ダウンロード中",
-      unavailable: "使用不可"
-    };
-
-    localAiStatus.textContent =
-      statusMap[availability] ||
-      availability;
-  } catch (error) {
-    console.error(
-      "Local AI確認エラー:",
-      error
-    );
-
-    localAIAvailability = "error";
-    localAiStatus.textContent =
-      "確認エラー";
-  }
-}
-
-function getRoleSystemPrompt(role) {
-  if (role === "ceo") {
-    return `
-あなたはAI Company Core 2.0のAI CEOです。
-
-あなたはFounderの提案を盲目的に実行しません。
-必要なら反対、保留、追加調査を判断してください。
-
-各部署の意見を重視し、
-安全性、収益性、実行可能性、
-攻めと守りのバランスを考えてください。
-
-外部AI APIへの依存を前提にしないでください。
-危険または理解できない行動は推進しないでください。
-
-日本語で回答してください。
-`;
-  }
-
-  if (role === "企画") {
-    return `
-あなたはAI Company Core 2.0の企画部署です。
-
-顧客価値、市場性、差別化、
-事業として成立する理由を検討してください。
-
-必要なら明確に反対してください。
-日本語で回答してください。
-`;
-  }
-
-  if (role === "技術") {
-    return `
-あなたはAI Company Core 2.0の技術部署です。
-
-実装可能性、開発規模、
-技術的リスク、保守性、
-依存関係を検討してください。
-
-不要な複雑化や外部依存を避けてください。
-日本語で回答してください。
-`;
-  }
-
-  if (role === "財務") {
-    return `
-あなたはAI Company Core 2.0の財務部署です。
-
-収益性、コスト、資金、
-継続可能性を検討してください。
-
-面白そうという理由だけで賛成しないでください。
-日本語で回答してください。
-`;
-  }
-
-  return `
-あなたはAI Company Core 2.0のリスク管理部署です。
-
-安全性、法務、規約、
-運営上の問題を検討してください。
-
-不明なリスクは無視せず、
-必要なら明確に反対してください。
-
-日本語で回答してください。
-`;
-}
-
-async function getLocalAISession(role) {
-  if (localAISessions.has(role)) {
-    return localAISessions.get(role);
-  }
-
-  if (!("LanguageModel" in window)) {
-    throw new Error(
-      "このブラウザではLocal AIを利用できません。"
-    );
-  }
-
-  const session =
-    await LanguageModel.create({
-      expectedInputs: [
-        {
-          type: "text",
-          languages: ["ja"]
-        }
-      ],
-      expectedOutputs: [
-        {
-          type: "text",
-          languages: ["ja"]
-        }
-      ],
-      initialPrompts: [
-        {
-          role: "system",
-          content:
-            getRoleSystemPrompt(role)
-        }
-      ]
-    });
-
-  localAISessions.set(
-    role,
-    session
-  );
-
-  localAiStatus.textContent =
-    "使用中";
-
-  return session;
-}
-
-async function askLocalAI(
-  role,
-  prompt
-) {
-  const session =
-    await getLocalAISession(role);
-
-  const response =
-    await session.prompt(prompt);
-
-  return response.trim();
-}
-
-function fallbackReview(department) {
-  const defaults = {
-    企画:
-      "事業性と顧客価値を追加確認する必要があります。",
-    技術:
-      "小規模な試作から始め、技術的負荷を確認する必要があります。",
-    財務:
-      "収益モデルと必要コストを確認する必要があります。",
-    "リスク管理":
-      "安全性と運営上のリスクを確認する必要があります。"
-  };
-
-  return (
-    defaults[department] ||
-    "追加確認が必要です。"
-  );
-}
-
-/* =========================
-   TASK CORE
-========================= */
-
-let tasks = loadJSON(
-  STORAGE_KEYS.tasks,
-  []
-);
-
-tasks = tasks.map(function (task) {
-  let taskStatus =
-    task.status;
-
-  if (!taskStatus) {
-    taskStatus =
-      task.completed
-        ? "completed"
-        : "pending";
-  }
-
-  return {
-    text:
-      task.text ||
-      "無題のタスク",
-
-    priority:
-      task.priority ||
-      "通常",
-
-    status:
-      taskStatus,
-
-    runCount:
-      Number(task.runCount) || 0,
-
-    lastRunAt:
-      task.lastRunAt ||
-      null,
-
-    result:
-      task.result ||
-      "",
-
-    executor:
-      task.executor ||
-      "local"
-  };
-});
-
-function saveTasks() {
-  saveJSON(
-    STORAGE_KEYS.tasks,
-    tasks
-  );
-}
-
-function getPriorityValue(priority) {
-  if (priority === "高") {
-    return 1;
-  }
-
-  if (priority === "通常") {
-    return 2;
-  }
-
-  return 3;
-}
-
-function getTaskStatusValue(taskStatus) {
-  if (taskStatus === "pending") {
-    return 1;
-  }
-
-  if (taskStatus === "running") {
-    return 2;
-  }
-
-  return 3;
-}
-
-function getTaskStatusText(taskStatus) {
-  if (taskStatus === "running") {
-    return "（実行中）";
-  }
-
-  if (taskStatus === "completed") {
-    return "（完了）";
-  }
-
-  return "";
-}
-
-function executeTaskLocally(task) {
-  return new Promise(function (resolve) {
-    setTimeout(function () {
-      resolve({
-        success: true,
-        executor: "local",
-        result:
-          "ローカル実行を受け付けました：" +
-          task.text
-      });
-    }, 300);
-  });
-}
-
-function renderTasks() {
-  taskList.replaceChildren();
-
-  const sortedTasks =
-    [...tasks].sort(function (a, b) {
-      const priorityDifference =
-        getPriorityValue(
-          a.priority
-        ) -
-        getPriorityValue(
-          b.priority
-        );
-
-      if (priorityDifference !== 0) {
-        return priorityDifference;
-      }
-
-      return (
-        getTaskStatusValue(
-          a.status
-        ) -
-        getTaskStatusValue(
-          b.status
-        )
-      );
-    });
-
-  sortedTasks.forEach(
-    function (task) {
-      const item =
-        document.createElement("li");
-
-      const text =
-        document.createElement("span");
-
-      text.textContent =
-        task.text +
-        "（優先度：" +
-        task.priority +
-        "）" +
-        getTaskStatusText(
-          task.status
-        );
-
-      const history =
-        document.createElement("small");
-
-      history.textContent =
-        "実行回数：" +
-        task.runCount +
-        "回 / 最終実行：" +
-        formatDate(
-          task.lastRunAt
-        );
-
-      const taskResult =
-        document.createElement("small");
-
-      taskResult.textContent =
-        task.result
-          ? "実行結果：" +
-            task.result
-          : "実行結果：まだありません";
-
-      const executor =
-        document.createElement("small");
-
-      executor.textContent =
-        "実行方式：" +
-        (
-          task.executor === "local"
-            ? "Local Executor"
-            : task.executor
-        );
-
-      const editButton =
-        document.createElement("button");
-
-      editButton.textContent =
-        "編集";
-
-      editButton.type =
-        "button";
-
-      editButton.addEventListener(
-        "click",
-        function () {
-          const value =
-            window.prompt(
-              "新しいタスク名を入力してください",
-              task.text
-            );
-
-          if (value === null) {
-            return;
-          }
-
-          const trimmed =
-            value.trim();
-
-          if (!trimmed) {
-            setStatus(
-              "タスク名を入力してください"
-            );
-            return;
-          }
-
-          task.text =
-            trimmed;
-
-          saveTasks();
-          renderTasks();
-
-          setStatus(
-            "タスクを編集しました"
-          );
-        }
-      );
-
-      const action =
-        document.createElement("button");
-
-      action.type =
-        "button";
-
-      if (task.status === "pending") {
-        action.textContent =
-          "実行";
-
-        action.addEventListener(
-          "click",
-          async function () {
-            task.status =
-              "running";
-
-            task.runCount += 1;
-
-            task.lastRunAt =
-              new Date().toISOString();
-
-            saveTasks();
-            renderTasks();
-
-            setStatus(
-              "ローカル実行を開始しました"
-            );
-
-            const execution =
-              await executeTaskLocally(
-                task
-              );
-
-            if (!execution.success) {
-              task.status =
-                "pending";
-
-              saveTasks();
-              renderTasks();
-
-              setStatus(
-                "タスクの実行に失敗しました"
-              );
-
-              return;
-            }
-
-            task.status =
-              "completed";
-
-            task.executor =
-              execution.executor;
-
-            task.result =
-              execution.result;
-
-            saveTasks();
-            renderTasks();
-
-            setStatus(
-              "ローカル実行が完了しました"
-            );
-
-            result.textContent =
-              execution.result;
-          }
-        );
-      } else if (
-        task.status === "running"
-      ) {
-        action.textContent =
-          "完了";
-
-        action.addEventListener(
-          "click",
-          function () {
-            const value =
-              window.prompt(
-                "このタスクの実行結果を入力してください",
-                task.result
-              );
-
-            if (value === null) {
-              return;
-            }
-
-            const trimmed =
-              value.trim();
-
-            if (!trimmed) {
-              setStatus(
-                "実行結果を入力してください"
-              );
-              return;
-            }
-
-            task.result =
-              trimmed;
-
-            task.status =
-              "completed";
-
-            saveTasks();
-            renderTasks();
-
-            setStatus(
-              "タスクを完了にしました"
-            );
-          }
-        );
-      } else {
-        action.textContent =
-          "未完了に戻す";
-
-        action.addEventListener(
-          "click",
-          function () {
-            task.status =
-              "pending";
-
-            saveTasks();
-            renderTasks();
-
-            setStatus(
-              "タスクを未完了に戻しました"
-            );
-          }
-        );
-      }
-
-      const deleteButton =
-        document.createElement("button");
-
-      deleteButton.textContent =
-        "削除";
-
-      deleteButton.type =
-        "button";
-
-      deleteButton.addEventListener(
-        "click",
-        function () {
-          const index =
-            tasks.indexOf(task);
-
-          if (index !== -1) {
-            tasks.splice(index, 1);
-          }
-
-          saveTasks();
-          renderTasks();
-
-          setStatus(
-            "タスクを削除しました"
-          );
-        }
-      );
-
-      item.appendChild(text);
-      item.appendChild(history);
-      item.appendChild(taskResult);
-      item.appendChild(executor);
-      item.appendChild(editButton);
-      item.appendChild(action);
-      item.appendChild(deleteButton);
-
-      taskList.appendChild(item);
-    }
-  );
-
-  taskCount.textContent =
-    "登録数：" +
-    tasks.length +
-    "件";
-}
-
-addTaskButton.addEventListener(
-  "click",
-  function () {
-    const text =
-      taskInput.value.trim();
-
-    if (!text) {
-      setStatus(
-        "タスクを入力してください"
-      );
-      return;
-    }
-
-    tasks.push({
-      text,
-      priority:
-        taskPriority.value,
-      status:
-        "pending",
-      runCount:
+let companyState =
+  loadJSON(
+    STORAGE_KEYS.company,
+    {
+      goal:
+        "安全に自社内で収益化できる事業を探し、検証し、改善する",
+
+      mode:
+        "通常",
+
+      running:
+        false,
+
+      cycleCount:
         0,
-      lastRunAt:
+
+      lastCycleAt:
         null,
+
+      currentFocus:
+        "待機中"
+    }
+  );
+
+let engineEntries =
+  loadJSON(
+    STORAGE_KEYS.engineLog,
+    []
+  );
+
+let engineTimer =
+  null;
+
+
+/* =========================
+   TASK DATA
+========================= */
+
+let tasks =
+  loadJSON(
+    STORAGE_KEYS.tasks,
+    []
+  );
+
+
+tasks =
+  tasks.map(function (task) {
+
+    return {
+
+      text:
+        task.text ||
+        "無題のタスク",
+
+      priority:
+        task.priority ||
+        "通常",
+
+      status:
+        task.status ||
+        (
+          task.completed
+            ? "completed"
+            : "pending"
+        ),
+
+      runCount:
+        Number(task.runCount) ||
+        0,
+
+      lastRunAt:
+        task.lastRunAt ||
+        null,
+
       result:
+        task.result ||
         "",
+
       executor:
-        "local"
-    });
+        task.executor ||
+        "local",
 
-    saveTasks();
+      source:
+        task.source ||
+        "manual"
+    };
+  });
 
-    taskInput.value =
-      "";
-
-    taskPriority.value =
-      "通常";
-
-    renderTasks();
-
-    setStatus(
-      "タスクを登録しました"
-    );
-  }
-);
 
 /* =========================
    FOUNDER DATA
@@ -792,10 +255,13 @@ let founderMessages =
     []
   );
 
+
 founderMessages =
   founderMessages.map(
     function (message, index) {
+
       return {
+
         id:
           message.id ||
           `founder-${Date.now()}-${index}`,
@@ -841,71 +307,716 @@ founderMessages =
     }
   );
 
+
+/* =========================
+   SAVE
+========================= */
+
+function saveTasks() {
+
+  saveJSON(
+    STORAGE_KEYS.tasks,
+    tasks
+  );
+}
+
 function saveFounderMessages() {
+
   saveJSON(
     STORAGE_KEYS.founder,
     founderMessages
   );
 }
 
+function saveAll() {
+
+  saveJSON(
+    STORAGE_KEYS.company,
+    companyState
+  );
+
+  saveJSON(
+    STORAGE_KEYS.engineLog,
+    engineEntries.slice(-30)
+  );
+
+  saveTasks();
+  saveFounderMessages();
+}
+
+
 /* =========================
-   DEPARTMENT SELECTION
+   ENGINE LOG
+========================= */
+
+function logEngine(message) {
+
+  const entry = {
+    time:
+      new Date().toISOString(),
+
+    message:
+      message
+  };
+
+  engineEntries.push(entry);
+
+  saveJSON(
+    STORAGE_KEYS.engineLog,
+    engineEntries.slice(-30)
+  );
+
+  engineSummary.textContent =
+    `${formatDate(entry.time)}：${message}`;
+
+  renderEngineLog();
+}
+
+
+function renderEngineLog() {
+
+  engineLog.replaceChildren();
+
+  [
+    ...engineEntries
+  ]
+    .reverse()
+    .slice(0, 10)
+    .forEach(
+      function (entry) {
+
+        const li =
+          document.createElement(
+            "li"
+          );
+
+        li.textContent =
+          `${formatDate(entry.time)}：${entry.message}`;
+
+        engineLog.appendChild(
+          li
+        );
+      }
+    );
+}
+
+
+/* =========================
+   BASIC TEST
+========================= */
+
+runButton.addEventListener(
+  "click",
+  function () {
+
+    const text =
+      userInput.value.trim();
+
+    setStatus(
+      "正常稼働"
+    );
+
+    if (!text) {
+
+      result.textContent =
+        "動作テストに成功しました。入力は空です。";
+
+      return;
+    }
+
+    result.textContent =
+      `入力を受け取りました：${text}`;
+  }
+);
+
+
+/* =========================
+   TASK CORE
+========================= */
+
+function getPriorityValue(priority) {
+
+  if (priority === "高") {
+    return 1;
+  }
+
+  if (priority === "通常") {
+    return 2;
+  }
+
+  return 3;
+}
+
+
+function getTaskStatusValue(statusValue) {
+
+  if (statusValue === "pending") {
+    return 1;
+  }
+
+  if (statusValue === "running") {
+    return 2;
+  }
+
+  return 3;
+}
+
+
+function getTaskStatusText(statusValue) {
+
+  if (statusValue === "running") {
+    return "（実行中）";
+  }
+
+  if (statusValue === "completed") {
+    return "（完了）";
+  }
+
+  return "";
+}
+
+
+function executeTaskLocally(task) {
+
+  return new Promise(
+    function (resolve) {
+
+      setTimeout(
+        function () {
+
+          resolve({
+
+            success: true,
+
+            executor:
+              "local",
+
+            result:
+              `ローカル実行を受け付けました：${task.text}`
+          });
+
+        },
+        300
+      );
+    }
+  );
+}
+
+
+async function runSingleTask(task) {
+
+  task.status =
+    "running";
+
+  task.runCount +=
+    1;
+
+  task.lastRunAt =
+    new Date().toISOString();
+
+  saveTasks();
+  renderTasks();
+
+  setStatus(
+    `タスクを実行中：${task.text}`
+  );
+
+
+  const execution =
+    await executeTaskLocally(
+      task
+    );
+
+
+  if (!execution.success) {
+
+    task.status =
+      "pending";
+
+  } else {
+
+    task.status =
+      "completed";
+
+    task.executor =
+      execution.executor;
+
+    task.result =
+      execution.result;
+  }
+
+
+  saveTasks();
+  renderTasks();
+
+
+  setStatus(
+    execution.success
+      ? "ローカル実行が完了しました"
+      : "タスクの実行に失敗しました"
+  );
+
+  result.textContent =
+    execution.success
+      ? execution.result
+      : "実行に失敗しました。";
+}
+
+
+function renderTasks() {
+
+  taskList.replaceChildren();
+
+
+  const sorted =
+    [...tasks].sort(
+      function (a, b) {
+
+        const priorityDiff =
+          getPriorityValue(
+            a.priority
+          ) -
+          getPriorityValue(
+            b.priority
+          );
+
+        if (
+          priorityDiff !== 0
+        ) {
+          return priorityDiff;
+        }
+
+        return (
+          getTaskStatusValue(
+            a.status
+          ) -
+          getTaskStatusValue(
+            b.status
+          )
+        );
+      }
+    );
+
+
+  sorted.forEach(
+    function (task) {
+
+      const item =
+        document.createElement(
+          "li"
+        );
+
+
+      const text =
+        document.createElement(
+          "span"
+        );
+
+      text.textContent =
+        `${task.text}（優先度：${task.priority}）${getTaskStatusText(task.status)}`;
+
+
+      const history =
+        document.createElement(
+          "small"
+        );
+
+      history.textContent =
+        `実行回数：${task.runCount}回 / 最終実行：${formatDate(task.lastRunAt)}`;
+
+
+      const taskResult =
+        document.createElement(
+          "small"
+        );
+
+      taskResult.textContent =
+        task.result
+          ? `実行結果：${task.result}`
+          : "実行結果：まだありません";
+
+
+      const executor =
+        document.createElement(
+          "small"
+        );
+
+      executor.textContent =
+        `実行方式：${task.executor === "local" ? "Local Executor" : task.executor}`;
+
+
+      const edit =
+        document.createElement(
+          "button"
+        );
+
+      edit.textContent =
+        "編集";
+
+
+      edit.addEventListener(
+        "click",
+        function () {
+
+          const value =
+            window.prompt(
+              "新しいタスク名を入力してください",
+              task.text
+            );
+
+
+          if (
+            value === null
+          ) {
+            return;
+          }
+
+
+          const trimmed =
+            value.trim();
+
+
+          if (!trimmed) {
+
+            setStatus(
+              "タスク名を入力してください"
+            );
+
+            return;
+          }
+
+
+          task.text =
+            trimmed;
+
+          saveTasks();
+          renderTasks();
+
+          setStatus(
+            "タスクを編集しました"
+          );
+        }
+      );
+
+
+      const action =
+        document.createElement(
+          "button"
+        );
+
+
+      if (
+        task.status === "pending"
+      ) {
+
+        action.textContent =
+          "実行";
+
+
+        action.addEventListener(
+          "click",
+          async function () {
+
+            await runSingleTask(
+              task
+            );
+          }
+        );
+
+
+      } else if (
+        task.status === "running"
+      ) {
+
+        action.textContent =
+          "完了";
+
+
+        action.addEventListener(
+          "click",
+          function () {
+
+            const value =
+              window.prompt(
+                "このタスクの実行結果を入力してください",
+                task.result
+              );
+
+
+            if (
+              value === null
+            ) {
+              return;
+            }
+
+
+            const trimmed =
+              value.trim();
+
+
+            if (!trimmed) {
+
+              setStatus(
+                "実行結果を入力してください"
+              );
+
+              return;
+            }
+
+
+            task.result =
+              trimmed;
+
+            task.status =
+              "completed";
+
+
+            saveTasks();
+            renderTasks();
+
+
+            setStatus(
+              "タスクを完了にしました"
+            );
+          }
+        );
+
+
+      } else {
+
+        action.textContent =
+          "未完了に戻す";
+
+
+        action.addEventListener(
+          "click",
+          function () {
+
+            task.status =
+              "pending";
+
+            saveTasks();
+            renderTasks();
+
+            setStatus(
+              "タスクを未完了に戻しました"
+            );
+          }
+        );
+      }
+
+
+      const remove =
+        document.createElement(
+          "button"
+        );
+
+      remove.textContent =
+        "削除";
+
+
+      remove.addEventListener(
+        "click",
+        function () {
+
+          const index =
+            tasks.indexOf(task);
+
+          if (
+            index >= 0
+          ) {
+            tasks.splice(
+              index,
+              1
+            );
+          }
+
+          saveTasks();
+          renderTasks();
+
+          setStatus(
+            "タスクを削除しました"
+          );
+        }
+      );
+
+
+      item.append(
+        text,
+        history,
+        taskResult,
+        executor,
+        edit,
+        action,
+        remove
+      );
+
+
+      taskList.appendChild(
+        item
+      );
+    }
+  );
+
+
+  taskCount.textContent =
+    `登録数：${tasks.length}件`;
+}
+
+
+addTaskButton.addEventListener(
+  "click",
+  function () {
+
+    const text =
+      taskInput.value.trim();
+
+
+    if (!text) {
+
+      setStatus(
+        "タスクを入力してください"
+      );
+
+      return;
+    }
+
+
+    tasks.push({
+
+      text,
+
+      priority:
+        taskPriority.value,
+
+      status:
+        "pending",
+
+      runCount:
+        0,
+
+      lastRunAt:
+        null,
+
+      result:
+        "",
+
+      executor:
+        "local",
+
+      source:
+        "manual"
+    });
+
+
+    saveTasks();
+
+
+    taskInput.value =
+      "";
+
+    taskPriority.value =
+      "通常";
+
+
+    renderTasks();
+
+
+    setStatus(
+      "タスクを登録しました"
+    );
+  }
+);
+
+
+/* =========================
+   FOUNDER / CEO
 ========================= */
 
 function determineDepartments(text) {
+
   const value =
     text.toLowerCase();
 
-  const selected = [];
+  const selected =
+    [];
+
 
   function add(name) {
-    if (!selected.includes(name)) {
+
+    if (
+      !selected.includes(name)
+    ) {
       selected.push(name);
     }
   }
 
+
   if (
-    value.includes("事業") ||
-    value.includes("商品") ||
-    value.includes("サービス") ||
-    value.includes("企画") ||
-    value.includes("ゲーム")
+    [
+      "事業",
+      "商品",
+      "サービス",
+      "企画",
+      "ゲーム"
+    ].some(
+      word => value.includes(word)
+    )
   ) {
     add("企画");
   }
 
+
   if (
-    value.includes("開発") ||
-    value.includes("技術") ||
-    value.includes("アプリ") ||
-    value.includes("システム") ||
-    value.includes("ゲーム")
+    [
+      "開発",
+      "技術",
+      "アプリ",
+      "システム",
+      "ゲーム"
+    ].some(
+      word => value.includes(word)
+    )
   ) {
     add("技術");
   }
 
+
   if (
-    value.includes("収益") ||
-    value.includes("売上") ||
-    value.includes("価格") ||
-    value.includes("利益") ||
-    value.includes("事業")
+    [
+      "収益",
+      "売上",
+      "価格",
+      "利益",
+      "事業"
+    ].some(
+      word => value.includes(word)
+    )
   ) {
     add("財務");
   }
 
+
   if (
-    value.includes("危険") ||
-    value.includes("リスク") ||
-    value.includes("法律") ||
-    value.includes("規約") ||
-    value.includes("契約") ||
-    value.includes("外部")
+    [
+      "危険",
+      "リスク",
+      "法律",
+      "規約",
+      "契約",
+      "外部"
+    ].some(
+      word => value.includes(word)
+    )
   ) {
     add("リスク管理");
   }
 
-  if (selected.length === 0) {
+
+  if (
+    selected.length === 0
+  ) {
+
     return [
       "企画",
       "技術",
@@ -913,525 +1024,477 @@ function determineDepartments(text) {
     ];
   }
 
+
   return selected;
 }
 
-/* =========================
-   LOCAL AI REVIEW
-========================= */
 
-async function generateAIReview(
+function generateDepartmentReview(
   message,
   department
 ) {
-  const role =
-    department === "企画"
-      ? "企画"
-      : department === "技術"
-      ? "技術"
-      : department === "財務"
-      ? "財務"
-      : "リスク管理";
 
-  const prompt = `
-以下のFounder提案について、
-あなたの部署として独立して検討してください。
+  const texts = {
 
-【Founder提案】
-${message.text}
+    "企画":
+      "顧客価値、需要、差別化、事業として成立させる理由を確認します。",
 
-【担当部署】
-${department}
+    "技術":
+      "実装規模、技術負荷、保守性、依存関係を確認します。",
 
-次の4点を日本語で整理してください。
+    "財務":
+      "収益源、コスト、継続性、資金リスクを確認します。",
 
-1. 分析
-2. 推奨
-3. 懸念点
-4. CEOが判断するときに重要な点
+    "リスク管理":
+      "安全性、法務、規約、運営上のリスクを確認します。"
+  };
 
-Founderに迎合しないでください。
-不要だと思った場合は反対してください。
-分からない部分は分からないと明記してください。
-`;
 
-  try {
-    const answer =
-      await askLocalAI(
-        role,
-        prompt
-      );
+  const recommendations = {
 
-    return {
-      summary:
-        answer,
-      source:
-        "Local AI"
-    };
-  } catch (error) {
-    console.error(
-      "Local AI review failed:",
-      error
-    );
+    "企画":
+      "小さく検証して顧客反応を確認する。",
 
-    return {
-      summary:
-        fallbackReview(
-          department
-        ),
-      source:
-        "Fallback"
-    };
-  }
+    "技術":
+      "最小構成から試作し、複雑な依存を避ける。",
+
+    "財務":
+      "大きな固定費を避け、低コストで収益仮説を検証する。",
+
+    "リスク管理":
+      "不明なリスクを残したまま自動実行しない。"
+  };
+
+
+  return {
+
+    summary:
+      texts[department] ||
+      "追加確認が必要です。",
+
+    recommendation:
+      recommendations[department] ||
+      "追加確認が必要です。",
+
+    concern:
+      `Founder提案「${message.text}」について、${department}の視点から追加確認が必要です。`,
+
+    source:
+      "Core Rule"
+  };
 }
 
-/* =========================
-   LOCAL AI CEO
-========================= */
 
-async function generateAICeoDecision(
+function generateCeoDecision(
   message
 ) {
-  const reviewText =
-    Object.entries(
-      message.reviews
-    )
-      .map(
-        function ([department, review]) {
-          return (
-            "【" +
-            department +
-            "】\n" +
-            review.summary
-          );
-        }
-      )
-      .join("\n\n");
 
-  const prompt = `
-あなたはAI Company Core 2.0のAI CEOです。
-
-Founderから以下の提案がありました。
-
-【提案】
-${message.text}
-
-各部署から以下の意見を受けています。
-
-${reviewText}
-
-これらを踏まえて会社として判断してください。
-
-重要:
-- Founderに迎合しない
-- 必要なら反対・保留する
-- 攻めと守りを両方考える
-- 理解できないリスクを無視しない
-- 外部AI API依存を前提にしない
-- 小さく検証できるなら小さく検証する
-- 次の行動を具体化する
-
-日本語で回答してください。
-`;
-
-  try {
-    const answer =
-      await askLocalAI(
-        "ceo",
-        prompt
-      );
-
-    return {
-      decision:
-        "Local AI CEO判断",
-      reason:
-        answer,
-      nextAction:
-        "CEO判断を確認し、必要なら具体的なタスクへ分解する",
-      source:
-        "Local AI"
-    };
-  } catch (error) {
-    console.error(
-      "Local AI CEO failed:",
-      error
+  const hasRisk =
+    message.departments.includes(
+      "リスク管理"
     );
 
+  const hasBusiness =
+    message.departments.includes(
+      "企画"
+    );
+
+  const hasFinance =
+    message.departments.includes(
+      "財務"
+    );
+
+
+  if (
+    hasRisk &&
+    hasBusiness
+  ) {
+
     return {
+
       decision:
-        "追加検討",
+        "条件付きで検討",
+
       reason:
-        "Local AIを利用できなかったため、現段階では追加検討とします。",
+        "事業性を確認する価値はありますが、安全面と実行条件を確認してから進めます。",
+
       nextAction:
-        "提案内容を小さな検証タスクへ分解する",
+        "小規模検証を行い、結果を再評価する",
+
       source:
-        "Fallback"
+        "Core Rule",
+
+      decidedAt:
+        new Date().toISOString()
     };
   }
+
+
+  if (
+    hasBusiness &&
+    hasFinance
+  ) {
+
+    return {
+
+      decision:
+        "検討継続",
+
+      reason:
+        "事業性と収益性の両面から、追加検証を進めます。",
+
+      nextAction:
+        "市場検証と小規模実装を開始する",
+
+      source:
+        "Core Rule",
+
+      decidedAt:
+        new Date().toISOString()
+    };
+  }
+
+
+  return {
+
+    decision:
+      "追加検討",
+
+    reason:
+      "情報が不足しているため、追加調査を行います。",
+
+    nextAction:
+      "提案内容を小さな検証タスクへ分解する",
+
+    source:
+      "Core Rule",
+
+    decidedAt:
+      new Date().toISOString()
+  };
 }
 
-/* =========================
-   FOUNDER ROOM
-========================= */
 
 function renderFounderMessages() {
+
   founderLog.replaceChildren();
 
-  if (founderMessages.length === 0) {
-    const empty =
-      document.createElement("li");
 
-    empty.textContent =
+  if (
+    !founderMessages.length
+  ) {
+
+    const li =
+      document.createElement(
+        "li"
+      );
+
+    li.textContent =
       "まだ協議案件はありません。";
 
     founderLog.appendChild(
-      empty
+      li
     );
 
     return;
   }
 
+
   founderMessages.forEach(
     function (message) {
-      const item =
-        document.createElement("li");
 
-      const text =
-        document.createElement("p");
-
-      text.textContent =
-        "Founder：" +
-        message.text;
-
-      const state =
-        document.createElement("small");
-
-      state.textContent =
-        "状態：" +
-        message.status;
-
-      const created =
-        document.createElement("small");
-
-      created.textContent =
-        "提出日時：" +
-        formatDate(
-          message.createdAt
+      const li =
+        document.createElement(
+          "li"
         );
 
-      item.appendChild(text);
-      item.appendChild(state);
-      item.appendChild(created);
 
-      if (message.ceoDecision) {
-        const decision =
+      const text =
+        document.createElement(
+          "p"
+        );
+
+      text.textContent =
+        `Founder：${message.text}`;
+
+
+      const state =
+        document.createElement(
+          "small"
+        );
+
+      state.textContent =
+        `状態：${message.status}`;
+
+
+      const created =
+        document.createElement(
+          "small"
+        );
+
+      created.textContent =
+        `提出日時：${formatDate(message.createdAt)}`;
+
+
+      li.append(
+        text,
+        state,
+        created
+      );
+
+
+      if (
+        message.ceoDecision
+      ) {
+
+        const box =
           document.createElement(
             "div"
           );
 
-        decision.className =
+        box.className =
           "decision-box";
 
-        decision.textContent =
-          "CEO判断：" +
-          message.ceoDecision.decision;
+        box.textContent =
+          `CEO判断：${message.ceoDecision.decision}`;
 
-        item.appendChild(
-          decision
+        li.appendChild(
+          box
         );
       }
 
+
       founderLog.appendChild(
-        item
+        li
       );
     }
   );
 }
 
-/* =========================
-   CEO COUNCIL
-========================= */
 
 function renderCeoCouncil() {
+
   ceoCouncilList.replaceChildren();
 
-  if (founderMessages.length === 0) {
-    const empty =
-      document.createElement("li");
 
-    empty.textContent =
+  if (
+    !founderMessages.length
+  ) {
+
+    const li =
+      document.createElement(
+        "li"
+      );
+
+    li.textContent =
       "現在、CEO協議案件はありません。";
 
     ceoCouncilList.appendChild(
-      empty
+      li
     );
 
     return;
   }
 
+
   founderMessages.forEach(
     function (message) {
+
       const card =
-        document.createElement("li");
+        document.createElement(
+          "li"
+        );
 
       card.className =
         "council-card";
 
+
       const title =
-        document.createElement("p");
+        document.createElement(
+          "p"
+        );
 
       title.textContent =
         message.text;
 
-      card.appendChild(
-        title
-      );
 
       const state =
-        document.createElement("small");
+        document.createElement(
+          "small"
+        );
 
       state.textContent =
-        "CEO状態：" +
-        message.status;
+        `CEO状態：${message.status}`;
 
-      card.appendChild(
+
+      card.append(
+        title,
         state
       );
+
 
       if (
         message.status ===
         "CEO協議待ち"
       ) {
-        const startButton =
+
+        const start =
           document.createElement(
             "button"
           );
 
-        startButton.textContent =
+        start.textContent =
           "CEO協議を開始";
 
-        startButton.type =
-          "button";
 
-        startButton.addEventListener(
+        start.addEventListener(
           "click",
           function () {
-            message.departments =
-              determineDepartments(
-                message.text
-              );
 
-            message.status =
-              "各部署確認中";
-
-            message.updatedAt =
-              new Date().toISOString();
-
-            saveFounderMessages();
-
-            renderFounderMessages();
-            renderCeoCouncil();
-
-            setCeoStatus(
-              "各部署確認中"
-            );
-
-            setStatus(
-              "CEOが協議を開始しました"
+            processFounderStart(
+              message
             );
           }
         );
 
+
         card.appendChild(
-          startButton
+          start
         );
       }
 
-      if (
-        message.departments.length > 0
-      ) {
-        const list =
-          document.createElement("ul");
 
-        message.departments.forEach(
-          function (department) {
-            const departmentCard =
+      message.departments.forEach(
+        function (department) {
+
+          const box =
+            document.createElement(
+              "div"
+            );
+
+          box.className =
+            "department-card";
+
+
+          const heading =
+            document.createElement(
+              "h3"
+            );
+
+          heading.textContent =
+            department;
+
+
+          const info =
+            DEPARTMENTS.find(
+              item =>
+                item.name ===
+                department
+            );
+
+
+          const description =
+            document.createElement(
+              "small"
+            );
+
+          description.textContent =
+            info
+              ? info.description
+              : "";
+
+
+          box.append(
+            heading,
+            description
+          );
+
+
+          if (
+            message.reviews[
+              department
+            ]
+          ) {
+
+            const review =
               document.createElement(
-                "li"
+                "p"
               );
 
-            departmentCard.className =
-              "department-card";
+            review.textContent =
+              message.reviews[
+                department
+              ].summary;
 
-            const departmentInfo =
-              DEPARTMENTS.find(
-                function (item) {
-                  return (
-                    item.name ===
-                    department
-                  );
-                }
-              );
 
-            const heading =
-              document.createElement(
-                "h3"
-              );
-
-            heading.textContent =
-              department;
-
-            const description =
+            const rec =
               document.createElement(
                 "small"
               );
 
-            description.textContent =
-              departmentInfo
-                ? departmentInfo.description
-                : "";
+            rec.textContent =
+              `提案：${message.reviews[department].recommendation}`;
 
-            departmentCard.appendChild(
-              heading
+
+            box.append(
+              review,
+              rec
             );
 
-            departmentCard.appendChild(
-              description
+
+          } else {
+
+            const reviewButton =
+              document.createElement(
+                "button"
+              );
+
+            reviewButton.textContent =
+              "部署レビューを実行";
+
+
+            reviewButton.addEventListener(
+              "click",
+              function () {
+
+                processDepartmentReview(
+                  message,
+                  department
+                );
+              }
             );
 
-            if (
-              message.reviews[
-                department
-              ]
-            ) {
-              const review =
-                document.createElement(
-                  "p"
-                );
 
-              review.textContent =
-                message.reviews[
-                  department
-                ].summary;
-
-              const source =
-                document.createElement(
-                  "small"
-                );
-
-              source.textContent =
-                "情報源：" +
-                message.reviews[
-                  department
-                ].source;
-
-              departmentCard.appendChild(
-                review
-              );
-
-              departmentCard.appendChild(
-                source
-              );
-            } else {
-              const reviewButton =
-                document.createElement(
-                  "button"
-                );
-
-              reviewButton.textContent =
-                "部署レビューを実行";
-
-              reviewButton.type =
-                "button";
-
-              reviewButton.addEventListener(
-                "click",
-                async function () {
-                  reviewButton.disabled =
-                    true;
-
-                  reviewButton.textContent =
-                    "AIが検討中...";
-
-                  message.status =
-                    "各部署レビュー中";
-
-                  saveFounderMessages();
-
-                  renderFounderMessages();
-
-                  try {
-                    const review =
-                      await generateAIReview(
-                        message,
-                        department
-                      );
-
-                    message.reviews[
-                      department
-                    ] =
-                      review;
-
-                    message.updatedAt =
-                      new Date().toISOString();
-
-                    saveFounderMessages();
-
-                    renderFounderMessages();
-                    renderCeoCouncil();
-
-                    setStatus(
-                      department +
-                      "のレビューが完了しました"
-                    );
-                  } catch (error) {
-                    console.error(error);
-
-                    reviewButton.disabled =
-                      false;
-
-                    reviewButton.textContent =
-                      "部署レビューを実行";
-
-                    setStatus(
-                      "部署レビューに失敗しました"
-                    );
-                  }
-                }
-              );
-
-              departmentCard.appendChild(
-                reviewButton
-              );
-            }
-
-            list.appendChild(
-              departmentCard
+            box.appendChild(
+              reviewButton
             );
           }
-        );
 
-        card.appendChild(
-          list
-        );
-      }
+
+          card.appendChild(
+            box
+          );
+        }
+      );
+
 
       const allReviewed =
         message.departments.length > 0 &&
         message.departments.every(
-          function (department) {
-            return Boolean(
+          department =>
+            Boolean(
               message.reviews[
                 department
               ]
-            );
-          }
+            )
         );
+
 
       if (
         allReviewed &&
         !message.ceoDecision
       ) {
+
         const decisionButton =
           document.createElement(
             "button"
@@ -1440,89 +1503,45 @@ function renderCeoCouncil() {
         decisionButton.textContent =
           "CEOが総合判断する";
 
-        decisionButton.type =
-          "button";
 
         decisionButton.addEventListener(
           "click",
-          async function () {
-            decisionButton.disabled =
-              true;
+          function () {
 
-            decisionButton.textContent =
-              "CEOが判断中...";
-
-            setCeoStatus(
-              "AI CEO判断中"
+            processCeoDecision(
+              message
             );
-
-            try {
-              const decision =
-                await generateAICeoDecision(
-                  message
-                );
-
-              message.ceoDecision =
-                decision;
-
-              message.status =
-                "CEO判断完了";
-
-              message.updatedAt =
-                new Date().toISOString();
-
-              saveFounderMessages();
-
-              renderFounderMessages();
-              renderCeoCouncil();
-
-              setCeoStatus(
-                "判断完了"
-              );
-
-              setStatus(
-                "Local AI CEOが判断しました"
-              );
-            } catch (error) {
-              console.error(error);
-
-              decisionButton.disabled =
-                false;
-
-              decisionButton.textContent =
-                "CEOが総合判断する";
-
-              setStatus(
-                "CEO判断に失敗しました"
-              );
-            }
           }
         );
+
 
         card.appendChild(
           decisionButton
         );
       }
 
+
       if (
         message.ceoDecision
       ) {
-        const decisionBox =
+
+        const box =
           document.createElement(
             "div"
           );
 
-        decisionBox.className =
+        box.className =
           "decision-box";
 
-        const title =
+
+        const strong =
           document.createElement(
             "strong"
           );
 
-        title.textContent =
-          "CEO判断：" +
-          message.ceoDecision.decision;
+        strong.textContent =
+          `CEO判断：${message.ceoDecision.decision}`;
+
 
         const reason =
           document.createElement(
@@ -1530,7 +1549,8 @@ function renderCeoCouncil() {
           );
 
         reason.textContent =
-          message.ceoDecision.reason;
+          `理由：${message.ceoDecision.reason}`;
+
 
         const next =
           document.createElement(
@@ -1538,92 +1558,51 @@ function renderCeoCouncil() {
           );
 
         next.textContent =
-          "次の行動：" +
-          message.ceoDecision.nextAction;
+          `次の行動：${message.ceoDecision.nextAction}`;
 
-        decisionBox.appendChild(
-          title
-        );
 
-        decisionBox.appendChild(
-          reason
-        );
-
-        decisionBox.appendChild(
+        box.append(
+          strong,
+          reason,
           next
         );
+
 
         if (
           !message.taskCreated
         ) {
-          const taskButton =
+
+          const createTask =
             document.createElement(
               "button"
             );
 
-          taskButton.textContent =
+          createTask.textContent =
             "次の行動をタスク化";
 
-          taskButton.type =
-            "button";
 
-          taskButton.addEventListener(
+          createTask.addEventListener(
             "click",
             function () {
-              tasks.push({
-                text:
-                  message.ceoDecision.nextAction,
 
-                priority:
-                  "通常",
-
-                status:
-                  "pending",
-
-                runCount:
-                  0,
-
-                lastRunAt:
-                  null,
-
-                result:
-                  "",
-
-                executor:
-                  "local"
-              });
-
-              message.taskCreated =
-                true;
-
-              message.status =
-                "判断からタスク作成済み";
-
-              message.updatedAt =
-                new Date().toISOString();
-
-              saveTasks();
-              saveFounderMessages();
-
-              renderTasks();
-              renderFounderMessages();
-              renderCeoCouncil();
-
-              setStatus(
-                "CEO判断からタスクを作成しました"
+              createTaskFromDecision(
+                message
               );
             }
           );
 
-          decisionBox.appendChild(
-            taskButton
+
+          box.appendChild(
+            createTask
           );
         }
 
+
         card.appendChild(
-          decisionBox
+          box
         );
       }
+
 
       ceoCouncilList.appendChild(
         card
@@ -1632,6 +1611,161 @@ function renderCeoCouncil() {
   );
 }
 
+
+function processFounderStart(
+  message
+) {
+
+  message.departments =
+    determineDepartments(
+      message.text
+    );
+
+  message.status =
+    "各部署確認中";
+
+  message.updatedAt =
+    new Date().toISOString();
+
+
+  saveFounderMessages();
+
+  renderFounderMessages();
+  renderCeoCouncil();
+
+
+  ceoStatus.textContent =
+    "各部署確認中";
+
+
+  setStatus(
+    "CEOが各部署へ協議を回しました"
+  );
+}
+
+
+function processDepartmentReview(
+  message,
+  department
+) {
+
+  message.reviews[
+    department
+  ] =
+    generateDepartmentReview(
+      message,
+      department
+    );
+
+
+  message.status =
+    "各部署レビュー中";
+
+  message.updatedAt =
+    new Date().toISOString();
+
+
+  saveFounderMessages();
+
+  renderFounderMessages();
+  renderCeoCouncil();
+
+
+  setStatus(
+    `${department}のレビューを記録しました`
+  );
+}
+
+
+function processCeoDecision(
+  message
+) {
+
+  message.ceoDecision =
+    generateCeoDecision(
+      message
+    );
+
+  message.status =
+    "CEO判断完了";
+
+  message.updatedAt =
+    new Date().toISOString();
+
+
+  saveFounderMessages();
+
+  renderFounderMessages();
+  renderCeoCouncil();
+
+
+  ceoStatus.textContent =
+    "判断完了";
+
+
+  setStatus(
+    "CEOが各部署の意見を統合しました"
+  );
+}
+
+
+function createTaskFromDecision(
+  message
+) {
+
+  tasks.push({
+
+    text:
+      message.ceoDecision.nextAction,
+
+    priority:
+      companyState.mode === "攻め"
+        ? "高"
+        : "通常",
+
+    status:
+      "pending",
+
+    runCount:
+      0,
+
+    lastRunAt:
+      null,
+
+    result:
+      "",
+
+    executor:
+      "local",
+
+    source:
+      "ceo"
+  });
+
+
+  message.taskCreated =
+    true;
+
+  message.status =
+    "判断からタスク作成済み";
+
+  message.updatedAt =
+    new Date().toISOString();
+
+
+  saveAll();
+
+  renderTasks();
+  renderFounderMessages();
+  renderCeoCouncil();
+
+
+  setStatus(
+    "CEO判断からタスクを作成しました"
+  );
+}
+
+
 /* =========================
    FOUNDER SUBMIT
 ========================= */
@@ -1639,20 +1773,25 @@ function renderCeoCouncil() {
 founderSubmitButton.addEventListener(
   "click",
   function () {
+
     const text =
       founderInput.value.trim();
 
+
     if (!text) {
+
       setStatus(
         "相談内容を入力してください"
       );
+
       return;
     }
 
+
     founderMessages.push({
+
       id:
-        "founder-" +
-        Date.now(),
+        `founder-${Date.now()}`,
 
       text,
 
@@ -1678,16 +1817,21 @@ founderSubmitButton.addEventListener(
         new Date().toISOString()
     });
 
+
     saveFounderMessages();
+
 
     founderInput.value =
       "";
 
+
     renderFounderMessages();
     renderCeoCouncil();
 
+
     ceoStatus.textContent =
       "新規案件受信";
+
 
     setStatus(
       "Founder RoomからCEOへ議題を提出しました"
@@ -1695,15 +1839,19 @@ founderSubmitButton.addEventListener(
   }
 );
 
+
 /* =========================
-   DEPARTMENT STATUS
+   INTERNAL DEPARTMENTS
 ========================= */
 
 function renderDepartmentStatus() {
+
   departmentStatus.replaceChildren();
+
 
   DEPARTMENTS.forEach(
     function (department) {
+
       const card =
         document.createElement(
           "div"
@@ -1712,6 +1860,7 @@ function renderDepartmentStatus() {
       card.className =
         "department-card";
 
+
       const title =
         document.createElement(
           "h3"
@@ -1719,6 +1868,7 @@ function renderDepartmentStatus() {
 
       title.textContent =
         department.name;
+
 
       const description =
         document.createElement(
@@ -1731,13 +1881,12 @@ function renderDepartmentStatus() {
       description.textContent =
         department.description;
 
-      card.appendChild(
-        title
-      );
 
-      card.appendChild(
+      card.append(
+        title,
         description
       );
+
 
       departmentStatus.appendChild(
         card
@@ -1746,25 +1895,590 @@ function renderDepartmentStatus() {
   );
 }
 
+
 /* =========================
-   INIT
+   COMPANY AUTONOMOUS ENGINE
 ========================= */
 
-saveTasks();
-saveFounderMessages();
+function chooseInternalTask() {
 
-renderTasks();
-renderFounderMessages();
-renderCeoCouncil();
-renderDepartmentStatus();
+  const textByMode = {
+
+    "攻め":
+      "新規事業機会を調査し、検証候補を整理する",
+
+    "通常":
+      "既存業務の改善余地を確認し、効率化候補を整理する",
+
+    "守り":
+      "会社運営上のリスクを確認し、問題候補を整理する"
+  };
+
+
+  const desired =
+    textByMode[
+      companyState.mode
+    ];
+
+
+  const exists =
+    tasks.some(
+      function (task) {
+
+        return (
+          task.text ===
+          desired &&
+          task.status !==
+            "completed"
+        );
+      }
+    );
+
+
+  if (exists) {
+    return null;
+  }
+
+
+  const task = {
+
+    text:
+      desired,
+
+    priority:
+      companyState.mode === "攻め"
+        ? "高"
+        : "通常",
+
+    status:
+      "pending",
+
+    runCount:
+      0,
+
+    lastRunAt:
+      null,
+
+    result:
+      "",
+
+    executor:
+      "local",
+
+    source:
+      "company-engine"
+  };
+
+
+  tasks.push(task);
+
+  saveTasks();
+  renderTasks();
+
+
+  return task;
+}
+
+
+async function runCompanyCycle() {
+
+  companyState.cycleCount +=
+    1;
+
+  companyState.lastCycleAt =
+    new Date().toISOString();
+
+  companyState.currentFocus =
+    "観測中";
+
+
+  saveJSON(
+    STORAGE_KEYS.company,
+    companyState
+  );
+
+
+  engineStatus.textContent =
+    "サイクル実行中";
+
+  ceoStatus.textContent =
+    "観測中";
+
+
+  /* Founder案件 */
+
+  const pendingFounder =
+    founderMessages.find(
+      message =>
+        message.status ===
+        "CEO協議待ち"
+    );
+
+
+  if (
+    pendingFounder
+  ) {
+
+    processFounderStart(
+      pendingFounder
+    );
+
+
+    logEngine(
+      `Founder案件をCEO協議へ移しました：${pendingFounder.text}`
+    );
+
+
+    companyState.currentFocus =
+      "Founder案件の部署協議";
+
+
+    finishCycle();
+
+    return;
+  }
+
+
+  /* 部署レビュー */
+
+  const reviewable =
+    founderMessages.find(
+      function (message) {
+
+        return (
+          message.departments.length > 0 &&
+          message.departments.some(
+            department =>
+              !message.reviews[
+                department
+              ]
+          )
+        );
+      }
+    );
+
+
+  if (
+    reviewable
+  ) {
+
+    const department =
+      reviewable.departments.find(
+        department =>
+          !reviewable.reviews[
+            department
+          ]
+      );
+
+
+    processDepartmentReview(
+      reviewable,
+      department
+    );
+
+
+    logEngine(
+      `部署レビューを実行しました：${department}`
+    );
+
+
+    companyState.currentFocus =
+      `${department}レビュー`;
+
+
+    finishCycle();
+
+    return;
+  }
+
+
+  /* CEO判断 */
+
+  const decisionReady =
+    founderMessages.find(
+      function (message) {
+
+        return (
+          message.departments.length > 0 &&
+          !message.ceoDecision &&
+          message.departments.every(
+            department =>
+              Boolean(
+                message.reviews[
+                  department
+                ]
+              )
+          )
+        );
+      }
+    );
+
+
+  if (
+    decisionReady
+  ) {
+
+    processCeoDecision(
+      decisionReady
+    );
+
+
+    logEngine(
+      `CEO判断を実行しました：${decisionReady.text}`
+    );
+
+
+    companyState.currentFocus =
+      "CEO判断";
+
+
+    finishCycle();
+
+    return;
+  }
+
+
+  /* 判断からタスク */
+
+  const taskReady =
+    founderMessages.find(
+      message =>
+        message.ceoDecision &&
+        !message.taskCreated
+    );
+
+
+  if (
+    taskReady
+  ) {
+
+    createTaskFromDecision(
+      taskReady
+    );
+
+
+    logEngine(
+      `CEO判断からタスクを作成しました：${taskReady.ceoDecision.nextAction}`
+    );
+
+
+    companyState.currentFocus =
+      "判断の実行化";
+
+
+    finishCycle();
+
+    return;
+  }
+
+
+  /* 既存タスク */
+
+  const pendingTask =
+    [...tasks]
+      .sort(
+        (a, b) =>
+          getPriorityValue(
+            a.priority
+          ) -
+          getPriorityValue(
+            b.priority
+          )
+      )
+      .find(
+        task =>
+          task.status ===
+          "pending"
+      );
+
+
+  if (
+    pendingTask
+  ) {
+
+    await runSingleTask(
+      pendingTask
+    );
+
+
+    logEngine(
+      `タスクを実行しました：${pendingTask.text}`
+    );
+
+
+    companyState.currentFocus =
+      `タスク実行：${pendingTask.text}`;
+
+
+    finishCycle();
+
+    return;
+  }
+
+
+  /* 会社自身の仕事 */
+
+  const internalTask =
+    chooseInternalTask();
+
+
+  if (
+    internalTask
+  ) {
+
+    logEngine(
+      `会社自身の次の仕事を作成しました：${internalTask.text}`
+    );
+
+
+    companyState.currentFocus =
+      "自律タスク生成";
+
+
+    finishCycle();
+
+    return;
+  }
+
+
+  companyState.currentFocus =
+    "観測待機";
+
+
+  logEngine(
+    "現時点で優先して処理すべき仕事はありません。"
+  );
+
+
+  finishCycle();
+}
+
+
+function finishCycle() {
+
+  companyState.lastCycleAt =
+    new Date().toISOString();
+
+
+  saveAll();
+
+
+  engineStatus.textContent =
+    companyState.running
+      ? "自律運転中"
+      : "待機中";
+
+
+  engineSummary.textContent =
+    `サイクル${companyState.cycleCount}回目 / ${formatDate(companyState.lastCycleAt)} / ${companyState.currentFocus}`;
+
+
+  renderEngineLog();
+  renderTasks();
+  renderFounderMessages();
+  renderCeoCouncil();
+}
+
+
+/* =========================
+   ENGINE CONTROLS
+========================= */
+
+runCycleButton.addEventListener(
+  "click",
+  async function () {
+
+    if (
+      runCycleButton.disabled
+    ) {
+      return;
+    }
+
+
+    runCycleButton.disabled =
+      true;
+
+
+    try {
+
+      await runCompanyCycle();
+
+    } finally {
+
+      runCycleButton.disabled =
+        false;
+    }
+  }
+);
+
+
+startEngineButton.addEventListener(
+  "click",
+  async function () {
+
+    if (
+      companyState.running
+    ) {
+      return;
+    }
+
+
+    companyState.running =
+      true;
+
+    saveJSON(
+      STORAGE_KEYS.company,
+      companyState
+    );
+
+
+    startEngineButton.disabled =
+      true;
+
+    stopEngineButton.disabled =
+      false;
+
+
+    engineStatus.textContent =
+      "自律運転中";
+
+
+    logEngine(
+      "Company Engineの自律運転を開始しました。"
+    );
+
+
+    await runCompanyCycle();
+
+
+    engineTimer =
+      setInterval(
+        function () {
+
+          if (
+            companyState.running
+          ) {
+            runCompanyCycle();
+          }
+
+        },
+        60000
+      );
+  }
+);
+
+
+stopEngineButton.addEventListener(
+  "click",
+  function () {
+
+    companyState.running =
+      false;
+
+
+    saveJSON(
+      STORAGE_KEYS.company,
+      companyState
+    );
+
+
+    if (
+      engineTimer
+    ) {
+
+      clearInterval(
+        engineTimer
+      );
+
+      engineTimer =
+        null;
+    }
+
+
+    startEngineButton.disabled =
+      false;
+
+    stopEngineButton.disabled =
+      true;
+
+
+    engineStatus.textContent =
+      "停止中";
+
+
+    logEngine(
+      "Company Engineの自律運転を停止しました。"
+    );
+  }
+);
+
+
+/* =========================
+   COMPANY SETTINGS
+========================= */
+
+companyGoal.value =
+  companyState.goal;
+
+companyMode.value =
+  companyState.mode;
+
+
+companyGoal.addEventListener(
+  "change",
+  function () {
+
+    const value =
+      companyGoal.value.trim();
+
+
+    if (
+      value
+    ) {
+
+      companyState.goal =
+        value;
+
+      saveJSON(
+        STORAGE_KEYS.company,
+        companyState
+      );
+
+      setStatus(
+        "会社目標を更新しました"
+      );
+    }
+  }
+);
+
+
+companyMode.addEventListener(
+  "change",
+  function () {
+
+    companyState.mode =
+      companyMode.value;
+
+
+    saveJSON(
+      STORAGE_KEYS.company,
+      companyState
+    );
+
+
+    setStatus(
+      `会社モードを「${companyState.mode}」に変更しました`
+    );
+  }
+);
+
+
+/* =========================
+   INITIALIZE
+========================= */
 
 systemStatus.textContent =
   "正常稼働";
-
-ceoStatus.textContent =
-  founderMessages.length > 0
-    ? "案件監視中"
-    : "待機中";
 
 executorStatus.textContent =
   "Local Executor";
@@ -1772,4 +2486,33 @@ executorStatus.textContent =
 apiStatus.textContent =
   "使用しない";
 
-checkLocalAI();
+engineStatus.textContent =
+  companyState.running
+    ? "自律運転中"
+    : "停止中";
+
+ceoStatus.textContent =
+  founderMessages.length
+    ? "案件監視中"
+    : "待機中";
+
+
+renderTasks();
+renderFounderMessages();
+renderCeoCouncil();
+renderDepartmentStatus();
+renderEngineLog();
+
+
+if (
+  companyState.running
+) {
+
+  companyState.running =
+    false;
+
+  saveJSON(
+    STORAGE_KEYS.company,
+    companyState
+  );
+}

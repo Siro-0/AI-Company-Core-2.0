@@ -1,20 +1,23 @@
 // =====================================================
 // AI Company Core 2.0
-// Company Core 3.0
+// Company Core 3.0 + Real Local Executor
 // 外部AI APIなし
 // =====================================================
 
 const STORAGE_KEYS = {
-  tasks: "ai_company_tasks_v3",
-  founder: "ai_company_founder_v3",
-  companyState: "ai_company_state_v3",
-  engineLog: "ai_company_engine_log_v3",
-  companyMemory: "ai_company_memory_v3",
-  strategy: "ai_company_strategy_v3",
-  business: "ai_company_business_v3",
-  humanGate: "ai_company_human_gate_v3",
-  improvements: "ai_company_improvements_v3"
+  tasks: "ai_company_tasks_v4",
+  founder: "ai_company_founder_v4",
+  companyState: "ai_company_state_v4",
+  engineLog: "ai_company_engine_log_v4",
+  companyMemory: "ai_company_memory_v4",
+  strategy: "ai_company_strategy_v4",
+  business: "ai_company_business_v4",
+  humanGate: "ai_company_human_gate_v4",
+  improvements: "ai_company_improvements_v4"
 };
+
+const LOCAL_EXECUTOR_URL =
+  "http://127.0.0.1:8765";
 
 const BASE_DEPARTMENTS = [
   "企画",
@@ -22,6 +25,12 @@ const BASE_DEPARTMENTS = [
   "財務",
   "リスク管理"
 ];
+
+const PRIORITY_ORDER = {
+  high: 1,
+  normal: 2,
+  low: 3
+};
 
 // =====================================================
 // Utility
@@ -76,13 +85,21 @@ function load(key, fallback) {
 
     return JSON.parse(raw);
   } catch (error) {
-    console.error("Storage load error:", key, error);
+    console.error(
+      "Storage load error:",
+      key,
+      error
+    );
+
     return fallback;
   }
 }
 
 function save(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
+  localStorage.setItem(
+    key,
+    JSON.stringify(value)
+  );
 }
 
 // =====================================================
@@ -90,58 +107,99 @@ function save(key, value) {
 // =====================================================
 
 const systemStatus =
-  document.getElementById("systemStatus");
+  document.getElementById(
+    "systemStatus"
+  );
 
 const ceoStatus =
-  document.getElementById("ceoStatus");
+  document.getElementById(
+    "ceoStatus"
+  );
 
 const engineStatus =
-  document.getElementById("engineStatus");
+  document.getElementById(
+    "engineStatus"
+  );
 
 const executorStatus =
-  document.getElementById("executorStatus");
+  document.getElementById(
+    "executorStatus"
+  );
 
 const apiStatus =
-  document.getElementById("apiStatus");
+  document.getElementById(
+    "apiStatus"
+  );
 
 const paceStatus =
-  document.getElementById("paceStatus");
+  document.getElementById(
+    "paceStatus"
+  );
 
 const companyGoalInput =
-  document.getElementById("companyGoal");
+  document.getElementById(
+    "companyGoal"
+  );
 
 const companyModeSelect =
-  document.getElementById("companyMode");
+  document.getElementById(
+    "companyMode"
+  );
 
 const runCycleButton =
-  document.getElementById("runCycleButton");
+  document.getElementById(
+    "runCycleButton"
+  );
 
 const startEngineButton =
-  document.getElementById("startEngineButton");
+  document.getElementById(
+    "startEngineButton"
+  );
 
 const stopEngineButton =
-  document.getElementById("stopEngineButton");
+  document.getElementById(
+    "stopEngineButton"
+  );
+
+const checkExecutorButton =
+  document.getElementById(
+    "checkExecutorButton"
+  );
 
 const engineDecision =
-  document.getElementById("engineDecision");
+  document.getElementById(
+    "engineDecision"
+  );
 
 const engineSummary =
-  document.getElementById("engineSummary");
+  document.getElementById(
+    "engineSummary"
+  );
 
 const engineLog =
-  document.getElementById("engineLog");
+  document.getElementById(
+    "engineLog"
+  );
 
 const businessList =
-  document.getElementById("businessList");
+  document.getElementById(
+    "businessList"
+  );
 
 const humanGateList =
-  document.getElementById("humanGateList");
+  document.getElementById(
+    "humanGateList"
+  );
 
 const improvementList =
-  document.getElementById("improvementList");
+  document.getElementById(
+    "improvementList"
+  );
 
 const companyMemoryEl =
-  document.getElementById("companyMemory");
+  document.getElementById(
+    "companyMemory"
+  );
 
 const activeDepartmentList =
   document.getElementById(
@@ -154,31 +212,49 @@ const discoverBusinessButton =
   );
 
 const testInput =
-  document.getElementById("testInput");
+  document.getElementById(
+    "testInput"
+  );
 
 const testButton =
-  document.getElementById("testButton");
+  document.getElementById(
+    "testButton"
+  );
 
 const testResult =
-  document.getElementById("testResult");
+  document.getElementById(
+    "testResult"
+  );
 
 const taskInput =
-  document.getElementById("taskInput");
+  document.getElementById(
+    "taskInput"
+  );
 
 const taskPriority =
-  document.getElementById("taskPriority");
+  document.getElementById(
+    "taskPriority"
+  );
 
 const addTaskButton =
-  document.getElementById("addTaskButton");
+  document.getElementById(
+    "addTaskButton"
+  );
 
 const taskCount =
-  document.getElementById("taskCount");
+  document.getElementById(
+    "taskCount"
+  );
 
 const taskList =
-  document.getElementById("taskList");
+  document.getElementById(
+    "taskList"
+  );
 
 const founderInput =
-  document.getElementById("founderInput");
+  document.getElementById(
+    "founderInput"
+  );
 
 const submitFounderButton =
   document.getElementById(
@@ -200,66 +276,99 @@ const councilCases =
 // =====================================================
 
 let tasks =
-  load(STORAGE_KEYS.tasks, []);
+  load(
+    STORAGE_KEYS.tasks,
+    []
+  );
 
 let founderCases =
-  load(STORAGE_KEYS.founder, []);
+  load(
+    STORAGE_KEYS.founder,
+    []
+  );
 
 let engineLogs =
-  load(STORAGE_KEYS.engineLog, []);
+  load(
+    STORAGE_KEYS.engineLog,
+    []
+  );
 
 let companyMemory =
-  load(STORAGE_KEYS.companyMemory, []);
+  load(
+    STORAGE_KEYS.companyMemory,
+    []
+  );
 
 let strategyHistory =
-  load(STORAGE_KEYS.strategy, []);
+  load(
+    STORAGE_KEYS.strategy,
+    []
+  );
 
 let businessOpportunities =
-  load(STORAGE_KEYS.business, []);
+  load(
+    STORAGE_KEYS.business,
+    []
+  );
 
 let humanGates =
-  load(STORAGE_KEYS.humanGate, []);
+  load(
+    STORAGE_KEYS.humanGate,
+    []
+  );
 
 let improvementIdeas =
-  load(STORAGE_KEYS.improvements, []);
+  load(
+    STORAGE_KEYS.improvements,
+    []
+  );
 
 let companyState =
-  load(STORAGE_KEYS.companyState, {
-    goal:
-      "事業を継続的に改善し、収益化できる機会を見つける",
+  load(
+    STORAGE_KEYS.companyState,
+    {
+      goal:
+        "事業を継続的に改善し、収益化できる機会を見つける",
 
-    mode:
-      "normal",
+      mode:
+        "normal",
 
-    running:
-      false,
+      running:
+        false,
 
-    cycleCount:
-      0,
+      cycleCount:
+        0,
 
-    lastCycleAt:
-      null,
+      lastCycleAt:
+        null,
 
-    currentFocus:
-      "観測中",
+      currentFocus:
+        "観測中",
 
-    currentPlan:
-      "まだ戦略判断はありません。",
+      currentPlan:
+        "まだ戦略判断はありません。",
 
-    nextAction:
-      "会社状態を分析して次の仕事を決定する",
+      nextAction:
+        "会社状態を分析して次の仕事を決定する",
 
-    activeDepartments:
-      [...BASE_DEPARTMENTS],
+      activeDepartments:
+        [
+          ...BASE_DEPARTMENTS
+        ],
 
-    waiting:
-      false,
+      waiting:
+        false,
 
-    lastEvaluation:
-      null
-  });
+      executorConnected:
+        false,
+
+      lastEvaluation:
+        null
+    }
+  );
 
 let cycleBusy = false;
+
 let engineInterval = null;
 
 // =====================================================
@@ -285,7 +394,9 @@ function normalizeTask(task) {
       "pending",
 
     runCount:
-      Number(task.runCount || 0),
+      Number(
+        task.runCount || 0
+      ),
 
     lastRunAt:
       task.lastRunAt ||
@@ -329,19 +440,24 @@ function normalizeTask(task) {
       "task",
 
     retryCount:
-      Number(task.retryCount || 0),
+      Number(
+        task.retryCount || 0
+      ),
 
     requiresHuman:
-      Boolean(task.requiresHuman),
+      Boolean(
+        task.requiresHuman
+      ),
 
     humanGateId:
       task.humanGateId ||
+      null,
+
+    localExecution:
+      task.localExecution ||
       null
   };
 }
-
-tasks =
-  tasks.map(normalizeTask);
 
 function normalizeFounder(item) {
   return {
@@ -362,12 +478,16 @@ function normalizeFounder(item) {
       nowISO(),
 
     departments:
-      Array.isArray(item.departments)
+      Array.isArray(
+        item.departments
+      )
         ? item.departments
         : [],
 
     reviews:
-      Array.isArray(item.reviews)
+      Array.isArray(
+        item.reviews
+      )
         ? item.reviews
         : [],
 
@@ -380,12 +500,21 @@ function normalizeFounder(item) {
       null,
 
     taskCreated:
-      Boolean(item.taskCreated)
+      Boolean(
+        item.taskCreated
+      )
   };
 }
 
+tasks =
+  tasks.map(
+    normalizeTask
+  );
+
 founderCases =
-  founderCases.map(normalizeFounder);
+  founderCases.map(
+    normalizeFounder
+  );
 
 save(
   STORAGE_KEYS.tasks,
@@ -398,45 +527,279 @@ save(
 );
 
 // =====================================================
-// Priority / Status
+// Labels
 // =====================================================
 
-const PRIORITY_ORDER = {
-  high: 1,
-  normal: 2,
-  low: 3
-};
-
-function priorityLabel(priority) {
-  if (priority === "high") {
+function priorityLabel(
+  priority
+) {
+  if (
+    priority === "high"
+  ) {
     return "高";
   }
 
-  if (priority === "low") {
+  if (
+    priority === "low"
+  ) {
     return "低";
   }
 
   return "通常";
 }
 
-function statusLabel(status) {
-  if (status === "running") {
+function statusLabel(
+  status
+) {
+  if (
+    status === "running"
+  ) {
     return "実行中";
   }
 
-  if (status === "completed") {
+  if (
+    status === "completed"
+  ) {
     return "完了";
   }
 
-  if (status === "waiting_human") {
+  if (
+    status ===
+    "waiting_human"
+  ) {
     return "人間承認待ち";
   }
 
-  if (status === "failed") {
+  if (
+    status === "failed"
+  ) {
     return "失敗";
   }
 
   return "未完了";
+}
+
+// =====================================================
+// Company State
+// =====================================================
+
+function saveCompanyState() {
+  save(
+    STORAGE_KEYS.companyState,
+    companyState
+  );
+}
+
+function getModeLabel(
+  mode
+) {
+  if (
+    mode === "offense"
+  ) {
+    return "攻め";
+  }
+
+  if (
+    mode === "defense"
+  ) {
+    return "守り";
+  }
+
+  return "通常";
+}
+
+function getOperationalPace() {
+  const hour =
+    new Date().getHours();
+
+  const pending =
+    tasks.filter(
+      (task) =>
+        task.status ===
+        "pending"
+    ).length;
+
+  let seconds = 60;
+
+  if (
+    companyState.mode ===
+    "offense"
+  ) {
+    seconds = 45;
+  }
+
+  if (
+    companyState.mode ===
+    "defense"
+  ) {
+    seconds = 90;
+  }
+
+  if (
+    hour >= 23 ||
+    hour < 7
+  ) {
+    seconds *= 2;
+  }
+
+  if (
+    pending >= 3
+  ) {
+    seconds *= 2;
+  }
+
+  return {
+    seconds,
+
+    label:
+      seconds <= 45
+        ? "高速"
+        : seconds <= 60
+        ? "通常"
+        : seconds <= 120
+        ? "低速"
+        : "抑制"
+  };
+}
+
+function renderCompanyState() {
+  companyGoalInput.value =
+    companyState.goal ||
+    "";
+
+  companyModeSelect.value =
+    companyState.mode ||
+    "normal";
+
+  engineStatus.textContent =
+    companyState.running
+      ? "自律運転中"
+      : "待機中";
+
+  ceoStatus.textContent =
+    companyState.currentFocus ||
+    "観測中";
+
+  const pace =
+    getOperationalPace();
+
+  paceStatus.textContent =
+    pace.label;
+
+  engineSummary.textContent =
+    `目標：${
+      companyState.goal ||
+      "未設定"
+    } / ` +
+    `モード：${
+      getModeLabel(
+        companyState.mode
+      )
+    } / ` +
+    `サイクル：${
+      companyState.cycleCount
+    }回 / ` +
+    `次の行動：${
+      companyState.nextAction ||
+      "未定"
+    }`;
+
+  renderActiveDepartments();
+}
+
+function setExecutorStatus(
+  connected,
+  message = ""
+) {
+  companyState.executorConnected =
+    connected;
+
+  executorStatus.textContent =
+    connected
+      ? "Python Local Executor 接続済み"
+      : "Python Local Executor 未接続";
+
+  if (message) {
+    addEngineLog(
+      "Executor",
+      message
+    );
+  }
+
+  saveCompanyState();
+  renderCompanyState();
+}
+
+// =====================================================
+// Executor Health Check
+// =====================================================
+
+async function checkExecutorConnection(
+  showLog = true
+) {
+  try {
+    const controller =
+      new AbortController();
+
+    const timeout =
+      setTimeout(
+        () =>
+          controller.abort(),
+        2500
+      );
+
+    const response =
+      await fetch(
+        `${LOCAL_EXECUTOR_URL}/health`,
+        {
+          method: "GET",
+          cache: "no-store",
+          signal:
+            controller.signal
+        }
+      );
+
+    clearTimeout(timeout);
+
+    if (
+      !response.ok
+    ) {
+      throw new Error(
+        `HTTP ${response.status}`
+      );
+    }
+
+    const data =
+      await response.json();
+
+    if (!data.ok) {
+      throw new Error(
+        "Executor returned an invalid health response."
+      );
+    }
+
+    setExecutorStatus(
+      true,
+
+      showLog
+        ? "Python Local Executorへ接続できました。"
+        : ""
+    );
+
+    return true;
+
+  } catch (error) {
+
+    setExecutorStatus(
+      false,
+
+      showLog
+        ? `Python Local Executorへ接続できません：${error.message}`
+        : ""
+    );
+
+    return false;
+  }
 }
 
 // =====================================================
@@ -451,37 +814,51 @@ function saveTasks() {
 }
 
 function sortTasks() {
-  tasks.sort((a, b) => {
+  tasks.sort(
+    (a, b) => {
 
-    const priorityDiff =
-      (PRIORITY_ORDER[a.priority] || 2) -
-      (PRIORITY_ORDER[b.priority] || 2);
+      const priorityDiff =
+        (PRIORITY_ORDER[
+          a.priority
+        ] || 2) -
+        (PRIORITY_ORDER[
+          b.priority
+        ] || 2);
 
-    if (priorityDiff !== 0) {
-      return priorityDiff;
+      if (
+        priorityDiff !== 0
+      ) {
+        return priorityDiff;
+      }
+
+      const statusRank = {
+        pending: 1,
+        running: 2,
+        waiting_human: 3,
+        failed: 4,
+        completed: 5
+      };
+
+      const statusDiff =
+        (statusRank[
+          a.status
+        ] || 1) -
+        (statusRank[
+          b.status
+        ] || 1);
+
+      if (
+        statusDiff !== 0
+      ) {
+        return statusDiff;
+      }
+
+      return (
+        new Date(b.updatedAt) -
+        new Date(a.updatedAt)
+      );
     }
-
-    const statusRank = {
-      pending: 1,
-      running: 2,
-      waiting_human: 3,
-      failed: 4,
-      completed: 5
-    };
-
-    const statusDiff =
-      (statusRank[a.status] || 1) -
-      (statusRank[b.status] || 1);
-
-    if (statusDiff !== 0) {
-      return statusDiff;
-    }
-
-    return (
-      new Date(b.updatedAt) -
-      new Date(a.updatedAt)
-    );
-  });
+  );
 }
 
 function renderTasks() {
@@ -490,182 +867,272 @@ function renderTasks() {
   taskCount.textContent =
     `登録数：${tasks.length}件`;
 
-  if (tasks.length === 0) {
+  if (
+    tasks.length === 0
+  ) {
     taskList.innerHTML =
       `<div class="empty">
         タスクはありません。
       </div>`;
+
     return;
   }
 
   taskList.innerHTML =
-    tasks.map((task) => {
+    tasks
+      .map(
+        (task) => {
 
-      const evaluationHTML =
-        task.evaluation
-          ? `
-            <div class="evaluation-box">
+          const evaluationHTML =
+            task.evaluation
+              ? `
+                <div class="evaluation-box">
 
-              <strong>
-                CEO評価：
+                  <strong>
+                    CEO評価：
+                    ${escapeHTML(
+                      task
+                        .evaluation
+                        .level
+                    )}
+                  </strong>
+
+                  <div>
+                    ${escapeHTML(
+                      task
+                        .evaluation
+                        .summary
+                    )}
+                  </div>
+
+                  <div>
+                    <strong>
+                      学習：
+                    </strong>
+
+                    ${escapeHTML(
+                      task
+                        .evaluation
+                        .lesson
+                    )}
+                  </div>
+
+                  <div>
+                    <strong>
+                      次の行動：
+                    </strong>
+
+                    ${escapeHTML(
+                      task
+                        .evaluation
+                        .nextAction
+                    )}
+                  </div>
+
+                  <div class="small">
+                    評価日時：
+                    ${escapeHTML(
+                      formatDate(
+                        task
+                          .evaluation
+                          .evaluatedAt
+                      )
+                    )}
+                  </div>
+
+                </div>
+              `
+              : "";
+
+          const localExecutionHTML =
+            task.localExecution
+              ? `
+                <div class="task-meta">
+                  実処理：
+                  ${escapeHTML(
+                    task
+                      .localExecution
+                      .action ||
+                    "Local Executor"
+                  )}
+                </div>
+
+                <div class="task-meta">
+                  出力：
+                  ${escapeHTML(
+                    task
+                      .localExecution
+                      .outputPath ||
+                    "なし"
+                  )}
+                </div>
+              `
+              : "";
+
+          return `
+            <div class="task-card">
+
+              <h4>
                 ${escapeHTML(
-                  task.evaluation.level
+                  task.title
                 )}
-              </strong>
+              </h4>
 
-              <div>
+              <div class="task-meta">
+                優先度：
                 ${escapeHTML(
-                  task.evaluation.summary
-                )}
-              </div>
-
-              <div>
-                <strong>学習：</strong>
-                ${escapeHTML(
-                  task.evaluation.lesson
-                )}
-              </div>
-
-              <div>
-                <strong>次の行動：</strong>
-                ${escapeHTML(
-                  task.evaluation.nextAction
-                )}
-              </div>
-
-              <div class="small">
-                評価日時：
-                ${escapeHTML(
-                  formatDate(
-                    task.evaluation.evaluatedAt
+                  priorityLabel(
+                    task.priority
                   )
                 )}
               </div>
 
-            </div>
-          `
-          : "";
+              <div class="task-meta">
+                状態：
 
-      return `
-        <div class="task-card">
-
-          <h4>
-            ${escapeHTML(task.title)}
-          </h4>
-
-          <div class="task-meta">
-            優先度：
-            ${escapeHTML(
-              priorityLabel(
-                task.priority
-              )
-            )}
-          </div>
-
-          <div class="task-meta">
-            状態：
-            <span class="status-tag">
-              ${escapeHTML(
-                statusLabel(
-                  task.status
-                )
-              )}
-            </span>
-          </div>
-
-          <div class="task-meta">
-            レベル：
-            ${escapeHTML(task.level)}
-          </div>
-
-          <div class="task-meta">
-            実行回数：
-            ${task.runCount}回
-          </div>
-
-          <div class="task-meta">
-            再試行：
-            ${task.retryCount}回
-          </div>
-
-          <div class="task-meta">
-            最終実行：
-            ${escapeHTML(
-              formatDate(
-                task.lastRunAt
-              )
-            )}
-          </div>
-
-          <div class="task-meta">
-            実行結果：
-            ${escapeHTML(
-              task.result ||
-              "まだありません"
-            )}
-          </div>
-
-          <div class="task-meta">
-            起点：
-            ${escapeHTML(task.source)}
-          </div>
-
-          ${
-            task.requiresHuman
-              ? `
-                <div class="task-meta">
-                  Human Gate：
+                <span class="status-tag">
                   ${escapeHTML(
-                    task.humanGateId ||
-                    "必要"
+                    statusLabel(
+                      task.status
+                    )
                   )}
-                </div>
-              `
-              : ""
-          }
+                </span>
+              </div>
 
-          ${evaluationHTML}
+              <div class="task-meta">
+                レベル：
+                ${escapeHTML(
+                  task.level
+                )}
+              </div>
 
-          <div class="task-buttons">
+              <div class="task-meta">
+                実行回数：
+                ${task.runCount}回
+              </div>
 
-            <button
-              onclick="editTask('${task.id}')">
-              編集
-            </button>
+              <div class="task-meta">
+                再試行：
+                ${task.retryCount}回
+              </div>
 
-            ${
-              task.status === "completed"
-                ? `
-                  <button
-                    onclick="returnTask('${task.id}')">
-                    未完了に戻す
-                  </button>
-                `
-                : task.status === "waiting_human"
-                ? `
-                  <button
-                    onclick="openTaskGate('${task.id}')">
-                    承認確認
-                  </button>
-                `
-                : `
-                  <button
-                    onclick="runSingleTask('${task.id}')">
-                    実行
-                  </button>
-                `
-            }
+              <div class="task-meta">
+                最終実行：
+                ${escapeHTML(
+                  formatDate(
+                    task.lastRunAt
+                  )
+                )}
+              </div>
 
-            <button
-              onclick="deleteTask('${task.id}')">
-              削除
-            </button>
+              <div class="task-meta">
+                実行結果：
+                ${escapeHTML(
+                  task.result ||
+                  "まだありません"
+                )}
+              </div>
 
-          </div>
+              <div class="task-meta">
+                実行方式：
+                ${escapeHTML(
+                  task.executor
+                )}
+              </div>
 
-        </div>
-      `;
-    }).join("");
+              <div class="task-meta">
+                起点：
+                ${escapeHTML(
+                  task.source
+                )}
+              </div>
+
+              ${localExecutionHTML}
+
+              ${
+                task.requiresHuman
+                  ? `
+                    <div class="task-meta">
+                      Human Gate：
+                      ${escapeHTML(
+                        task.humanGateId ||
+                        "必要"
+                      )}
+                    </div>
+                  `
+                  : ""
+              }
+
+              ${evaluationHTML}
+
+              <div class="task-buttons">
+
+                <button
+                  onclick="
+                    editTask(
+                      '${task.id}'
+                    )
+                  ">
+                  編集
+                </button>
+
+                ${
+                  task.status ===
+                  "completed"
+
+                    ? `
+                      <button
+                        onclick="
+                          returnTask(
+                            '${task.id}'
+                          )
+                        ">
+                        未完了に戻す
+                      </button>
+                    `
+
+                    : task.status ===
+                      "waiting_human"
+
+                    ? `
+                      <button
+                        onclick="
+                          openTaskGate(
+                            '${task.id}'
+                          )
+                        ">
+                        承認確認
+                      </button>
+                    `
+
+                    : `
+                      <button
+                        onclick="
+                          runSingleTask(
+                            '${task.id}'
+                          )
+                        ">
+                        実行
+                      </button>
+                    `
+                }
+
+                <button
+                  onclick="
+                    deleteTask(
+                      '${task.id}'
+                    )
+                  ">
+                  削除
+                </button>
+
+              </div>
+
+            </div>
+          `;
+        }
+      )
+      .join("");
 }
 
 function addTask(
@@ -682,6 +1149,7 @@ function addTask(
   }
 
   const task = {
+
     id:
       makeId("task"),
 
@@ -703,7 +1171,7 @@ function addTask(
       null,
 
     executor:
-      "Local Executor",
+      "Python Local Executor",
 
     source,
 
@@ -737,6 +1205,9 @@ function addTask(
       ),
 
     humanGateId:
+      null,
+
+    localExecution:
       null
   };
 
@@ -748,13 +1219,19 @@ function addTask(
   return task;
 }
 
-function findTask(taskId) {
+function findTask(
+  taskId
+) {
   return tasks.find(
-    (task) => task.id === taskId
+    (task) =>
+      task.id ===
+      taskId
   );
 }
 
-function editTask(taskId) {
+function editTask(
+  taskId
+) {
   const task =
     findTask(taskId);
 
@@ -789,7 +1266,9 @@ function editTask(taskId) {
   renderTasks();
 }
 
-function deleteTask(taskId) {
+function deleteTask(
+  taskId
+) {
   const task =
     findTask(taskId);
 
@@ -808,14 +1287,17 @@ function deleteTask(taskId) {
   tasks =
     tasks.filter(
       (item) =>
-        item.id !== taskId
+        item.id !==
+        taskId
     );
 
   saveTasks();
   renderTasks();
 }
 
-function returnTask(taskId) {
+function returnTask(
+  taskId
+) {
   const task =
     findTask(taskId);
 
@@ -829,6 +1311,9 @@ function returnTask(taskId) {
   task.evaluation =
     null;
 
+  task.localExecution =
+    null;
+
   task.updatedAt =
     nowISO();
 
@@ -836,15 +1321,64 @@ function returnTask(taskId) {
   renderTasks();
 }
 
+async function runSingleTask(
+  taskId
+) {
+  const task =
+    findTask(taskId);
+
+  if (!task) {
+    return;
+  }
+
+  const executorReady =
+    await checkExecutorConnection(
+      false
+    );
+
+  if (!executorReady) {
+
+    testResult.textContent =
+      "Python Local Executorが起動していません。";
+
+    return;
+  }
+
+  const result =
+    await executeTask(
+      task
+    );
+
+  if (!result) {
+    return;
+  }
+
+  evaluateTask(task);
+
+  recordMemoryFromTask(
+    task
+  );
+
+  maybeCreateImprovement();
+
+  renderTasks();
+
+  renderCompanyMemory();
+
+  renderImprovements();
+}
+
 // =====================================================
 // Human Gate
 // =====================================================
 
-function detectHumanGate(task) {
+function detectHumanGate(
+  task
+) {
   const text =
     task.title.toLowerCase();
 
-  const dangerousPatterns = [
+  const patterns = [
     "送金",
     "銀行",
     "決済",
@@ -859,14 +1393,18 @@ function detectHumanGate(task) {
     "個人情報"
   ];
 
-  return dangerousPatterns.some(
+  return patterns.some(
     (keyword) =>
-      text.includes(keyword)
+      text.includes(
+        keyword
+      )
   );
 }
 
-function createHumanGate(task) {
-  const exists =
+function createHumanGate(
+  task
+) {
+  const existing =
     humanGates.find(
       (gate) =>
         gate.taskId ===
@@ -875,7 +1413,8 @@ function createHumanGate(task) {
           "pending"
     );
 
-  if (exists) {
+  if (existing) {
+
     task.status =
       "waiting_human";
 
@@ -883,14 +1422,15 @@ function createHumanGate(task) {
       true;
 
     task.humanGateId =
-      exists.id;
+      existing.id;
 
     saveTasks();
 
-    return exists;
+    return existing;
   }
 
   const gate = {
+
     id:
       makeId("gate"),
 
@@ -941,11 +1481,14 @@ function createHumanGate(task) {
   return gate;
 }
 
-function approveGate(gateId) {
+function approveGate(
+  gateId
+) {
   const gate =
     humanGates.find(
       (item) =>
-        item.id === gateId
+        item.id ===
+        gateId
     );
 
   if (!gate) {
@@ -989,11 +1532,14 @@ function approveGate(gateId) {
   renderTasks();
 }
 
-function rejectGate(gateId) {
+function rejectGate(
+  gateId
+) {
   const gate =
     humanGates.find(
       (item) =>
-        item.id === gateId
+        item.id ===
+        gateId
     );
 
   if (!gate) {
@@ -1040,7 +1586,9 @@ function rejectGate(gateId) {
   renderTasks();
 }
 
-function openTaskGate(taskId) {
+function openTaskGate(
+  taskId
+) {
   const task =
     findTask(taskId);
 
@@ -1051,12 +1599,13 @@ function openTaskGate(taskId) {
     return;
   }
 
-  window.alert(
+  alert(
     "Human Gateを確認してください。"
   );
 }
 
 function renderHumanGates() {
+
   const pending =
     humanGates.filter(
       (gate) =>
@@ -1064,72 +1613,228 @@ function renderHumanGates() {
         "pending"
     );
 
-  if (pending.length === 0) {
+  if (
+    pending.length ===
+    0
+  ) {
+
     humanGateList.innerHTML =
       "現在、承認待ちはありません。";
+
     return;
   }
 
   humanGateList.innerHTML =
-    pending.map((gate) => `
-      <div class="gate-card pending">
+    pending
+      .map(
+        (gate) => `
+          <div class="gate-card pending">
 
-        <h4>
-          ${escapeHTML(
-            gate.taskTitle
-          )}
-        </h4>
+            <h4>
+              ${escapeHTML(
+                gate.taskTitle
+              )}
+            </h4>
 
-        <div class="meta">
-          理由：
-          ${escapeHTML(
-            gate.reason
-          )}
-        </div>
+            <div class="meta">
+              理由：
+              ${escapeHTML(
+                gate.reason
+              )}
+            </div>
 
-        <div class="meta">
-          作成：
-          ${escapeHTML(
-            formatDate(
-              gate.createdAt
-            )
-          )}
-        </div>
+            <div class="meta">
+              作成：
+              ${escapeHTML(
+                formatDate(
+                  gate.createdAt
+                )
+              )}
+            </div>
 
-        <div class="card-buttons">
+            <div class="card-buttons">
 
-          <button
-            onclick="approveGate('${gate.id}')">
-            承認
-          </button>
+              <button
+                onclick="
+                  approveGate(
+                    '${gate.id}'
+                  )
+                ">
+                承認
+              </button>
 
-          <button
-            onclick="rejectGate('${gate.id}')">
-            拒否
-          </button>
+              <button
+                onclick="
+                  rejectGate(
+                    '${gate.id}'
+                  )
+                ">
+                拒否
+              </button>
 
-        </div>
+            </div>
 
-      </div>
-    `).join("");
+          </div>
+        `
+      )
+      .join("");
 }
 
 // =====================================================
-// Executor
+// Real Local Executor
 // =====================================================
 
-function executeTask(task) {
-  return new Promise((resolve) => {
+async function executeTask(
+  task
+) {
 
-    if (detectHumanGate(task)) {
-      createHumanGate(task);
-      renderHumanGates();
-      resolve(null);
-      return;
+  if (
+    detectHumanGate(
+      task
+    )
+  ) {
+
+    createHumanGate(
+      task
+    );
+
+    renderHumanGates();
+    renderTasks();
+
+    return null;
+  }
+
+  task.status =
+    "running";
+
+  task.executor =
+    "Python Local Executor";
+
+  task.updatedAt =
+    nowISO();
+
+  saveTasks();
+  renderTasks();
+
+  try {
+
+    const response =
+      await fetch(
+        `${LOCAL_EXECUTOR_URL}/execute`,
+        {
+          method:
+            "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify(
+              {
+                task: {
+                  id:
+                    task.id,
+
+                  title:
+                    task.title,
+
+                  priority:
+                    task.priority,
+
+                  source:
+                    task.source,
+
+                  strategy_id:
+                    task.strategyId,
+
+                  parent_task_id:
+                    task.parentTaskId
+                }
+              }
+            )
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (
+      !response.ok ||
+      !data.ok
+    ) {
+
+      throw new Error(
+        data.error ||
+        `HTTP ${response.status}`
+      );
     }
 
     task.status =
-      "running";
+      "completed";
+
+    task.runCount +=
+      1;
+
+    task.lastRunAt =
+      nowISO();
+
+    task.result =
+      data.result ||
+      "実行完了";
+
+    task.executor =
+      "Python Local Executor";
+
+    task.updatedAt =
+      nowISO();
+
+    task.localExecution = {
+
+      action:
+        data.action ||
+        "Local Executor",
+
+      outputPath:
+        data.output_path ||
+        null,
+
+      metrics:
+        data.metrics ||
+        null,
+
+      raw:
+        data.data ||
+        null
+    };
+
+    saveTasks();
+    renderTasks();
+
+    testResult.textContent =
+      task.result;
+
+    addEngineLog(
+      "実ローカル実行",
+      `${data.result || "実行完了"} / 出力：${data.output_path || "なし"}`
+    );
+
+    return task;
+
+  } catch (error) {
+
+    task.status =
+      "pending";
+
+    task.executor =
+      "Python Local Executor";
+
+    task.result =
+      `実行待機：${error.message}`;
+
+    task.retryCount +=
+      1;
 
     task.updatedAt =
       nowISO();
@@ -1137,73 +1842,53 @@ function executeTask(task) {
     saveTasks();
     renderTasks();
 
-    setTimeout(() => {
+    addEngineLog(
+      "Executor待機",
+      `Local Executor実行に失敗しました：${error.message}`
+    );
 
-      task.status =
-        "completed";
-
-      task.runCount += 1;
-
-      task.lastRunAt =
-        nowISO();
-
-      task.result =
-        `ローカル実行を受け付けました：${task.title}`;
-
-      task.executor =
-        "Local Executor";
-
-      task.updatedAt =
-        nowISO();
-
-      saveTasks();
-
-      renderTasks();
-
-      testResult.textContent =
-        task.result;
-
-      resolve(task);
-
-    }, 350);
-  });
+    return null;
+  }
 }
 
 // =====================================================
-// Evaluation
+// Evaluation / Memory
 // =====================================================
 
-function evaluateTask(task) {
+function evaluateTask(
+  task
+) {
+
   if (
     !task ||
-    task.status !== "completed"
+    task.status !==
+    "completed"
   ) {
     return;
   }
 
-  const memoryText =
-    companyMemory
-      .slice(0, 3)
-      .map(
-        (memory) =>
-          memory.taskTitle
-      )
-      .join(" / ");
+  const isReal =
+    task.executor ===
+    "Python Local Executor";
 
   task.evaluation = {
 
     level:
-      "暫定成功",
+      isReal
+        ? "実行成功・成果確認前"
+        : "暫定成功",
 
     summary:
-      "Executor上では処理が完了しました。ただし現在の実行基盤はシミュレーションのため、現実世界の成果までは確認していません。",
+      isReal
+        ? "Python Local Executorで実処理を実行し、ローカル成果物または処理結果を取得しました。ただし事業上の成功までは確認していません。"
+        : "Executor上では処理が完了しました。",
 
     lesson:
       `「${task.title}」を実行単位として処理できた。`,
 
     nextAction:
-      memoryText
-        ? "過去の学習記録も参照し、別の改善または検証へ進む。"
+      isReal
+        ? "生成された成果物・実データを確認し、事業上の価値または改善効果を再評価する。"
         : "実際の成果を取得できる実行基盤へ拡張する。",
 
     evaluatedAt:
@@ -1213,11 +1898,10 @@ function evaluateTask(task) {
   saveTasks();
 }
 
-// =====================================================
-// Company Memory
-// =====================================================
+function recordMemoryFromTask(
+  task
+) {
 
-function recordMemoryFromTask(task) {
   if (
     !task ||
     !task.evaluation
@@ -1259,6 +1943,11 @@ function recordMemoryFromTask(task) {
     nextAction:
       task.evaluation.nextAction,
 
+    outputPath:
+      task.localExecution
+        ?.outputPath ||
+      null,
+
     createdAt:
       nowISO()
   };
@@ -1287,120 +1976,131 @@ function recordMemoryFromTask(task) {
 }
 
 function renderCompanyMemory() {
+
   if (
-    companyMemory.length === 0
+    companyMemory.length ===
+    0
   ) {
+
     companyMemoryEl.innerHTML =
       `<div class="empty">
         まだ学習記録はありません。
       </div>`;
+
     return;
   }
 
   companyMemoryEl.innerHTML =
     companyMemory
       .slice(0, 20)
-      .map((memory) => `
-        <div class="memory-entry">
+      .map(
+        (memory) => `
+          <div class="memory-entry">
 
-          <div class="memory-title">
-            ${escapeHTML(
-              memory.type
-            )}：
-            ${escapeHTML(
-              memory.taskTitle
-            )}
+            <div class="memory-title">
+              ${escapeHTML(
+                memory.type
+              )}：
+              ${escapeHTML(
+                memory.taskTitle
+              )}
+            </div>
+
+            <div class="memory-meta">
+              ${escapeHTML(
+                formatDate(
+                  memory.createdAt
+                )
+              )}
+            </div>
+
+            <div>
+              ${escapeHTML(
+                memory.summary
+              )}
+            </div>
+
+            <div>
+              <strong>
+                学習：
+              </strong>
+
+              ${escapeHTML(
+                memory.lesson
+              )}
+            </div>
+
+            <div>
+              <strong>
+                次の行動：
+              </strong>
+
+              ${escapeHTML(
+                memory.nextAction
+              )}
+            </div>
+
+            ${
+              memory.outputPath
+                ? `
+                  <div class="small">
+                    成果物：
+                    ${escapeHTML(
+                      memory.outputPath
+                    )}
+                  </div>
+                `
+                : ""
+            }
+
           </div>
-
-          <div class="memory-meta">
-            ${escapeHTML(
-              formatDate(
-                memory.createdAt
-              )
-            )}
-          </div>
-
-          <div>
-            ${escapeHTML(
-              memory.summary
-            )}
-          </div>
-
-          <div>
-            <strong>学習：</strong>
-            ${escapeHTML(
-              memory.lesson
-            )}
-          </div>
-
-          <div>
-            <strong>次の行動：</strong>
-            ${escapeHTML(
-              memory.nextAction
-            )}
-          </div>
-
-        </div>
-      `).join("");
+        `
+      )
+      .join("");
 }
 
 // =====================================================
-// Situation Analysis
+// Situation / Strategy
 // =====================================================
 
 function analyzeCompany() {
 
-  const pending =
-    tasks.filter(
-      (task) =>
-        task.status ===
-        "pending"
-    );
-
-  const running =
-    tasks.filter(
-      (task) =>
-        task.status ===
-        "running"
-    );
-
-  const waitingHuman =
-    tasks.filter(
-      (task) =>
-        task.status ===
-        "waiting_human"
-    );
-
-  const failed =
-    tasks.filter(
-      (task) =>
-        task.status ===
-        "failed"
-    );
-
-  const completed =
-    tasks.filter(
-      (task) =>
-        task.status ===
-        "completed"
-    );
-
   return {
 
     pending:
-      pending.length,
+      tasks.filter(
+        (task) =>
+          task.status ===
+          "pending"
+      ).length,
 
     running:
-      running.length,
+      tasks.filter(
+        (task) =>
+          task.status ===
+          "running"
+      ).length,
 
     waitingHuman:
-      waitingHuman.length,
+      tasks.filter(
+        (task) =>
+          task.status ===
+          "waiting_human"
+      ).length,
 
     failed:
-      failed.length,
+      tasks.filter(
+        (task) =>
+          task.status ===
+          "failed"
+      ).length,
 
     completed:
-      completed.length,
+      tasks.filter(
+        (task) =>
+          task.status ===
+          "completed"
+      ).length,
 
     memory:
       companyMemory.length,
@@ -1418,8 +2118,477 @@ function analyzeCompany() {
       companyState.goal,
 
     latestMemory:
-      companyMemory[0] || null
+      companyMemory[0] ||
+      null
   };
+}
+
+function buildStrategy() {
+
+  const analysis =
+    analyzeCompany();
+
+  if (
+    analysis.waitingHuman >
+    0
+  ) {
+
+    return {
+
+      id:
+        makeId("strategy"),
+
+      title:
+        "人間承認待ち案件を保持し、他の業務を整理する",
+
+      reason:
+        "重要な操作は人間承認を待つ必要があるため、承認待ち案件を停止したまま他の業務を進めます。",
+
+      objective:
+        "Human Gate管理",
+
+      goal:
+        companyState.goal,
+
+      mode:
+        companyState.mode,
+
+      createdAt:
+        nowISO()
+    };
+  }
+
+  if (
+    companyState.mode ===
+    "offense"
+  ) {
+
+    return {
+
+      id:
+        makeId("strategy"),
+
+      title:
+        analysis.latestMemory
+
+          ? "過去の学習を踏まえ、新規事業候補を具体的に検証する"
+
+          : "新規事業候補を探索し、検証優先順位を決める",
+
+      reason:
+        analysis.latestMemory
+
+          ? "既存の学習結果を次の事業探索へつなげ、検証可能な候補を増やします。"
+
+          : "会社目標達成のため、新しい事業機会を探索します。",
+
+      objective:
+        "事業探索",
+
+      goal:
+        companyState.goal,
+
+      mode:
+        companyState.mode,
+
+      createdAt:
+        nowISO()
+    };
+  }
+
+  if (
+    companyState.mode ===
+    "defense"
+  ) {
+
+    return {
+
+      id:
+        makeId("strategy"),
+
+      title:
+        "会社運営上のリスクと改善候補を整理する",
+
+      reason:
+        "将来の問題を減らし、安定した運営基盤を作る必要があります。",
+
+      objective:
+        "安定運営",
+
+      goal:
+        companyState.goal,
+
+      mode:
+        companyState.mode,
+
+      createdAt:
+        nowISO()
+    };
+  }
+
+  return {
+
+    id:
+      makeId("strategy"),
+
+    title:
+      analysis.latestMemory
+
+        ? "過去の学習を踏まえ、改善候補を具体化する"
+
+        : "既存業務の改善候補を整理し、優先順位を決める",
+
+    reason:
+      analysis.latestMemory
+
+        ? "実行結果から得た知識を次の改善行動へつなげます。"
+
+        : "会社目標に対して、現在の運営を改善する余地を確認します。",
+
+    objective:
+      "継続改善",
+
+    goal:
+      companyState.goal,
+
+    mode:
+      companyState.mode,
+
+    createdAt:
+      nowISO()
+  };
+}
+
+// =====================================================
+// Departments / Council
+// =====================================================
+
+function selectDepartments(
+  strategy
+) {
+
+  const text =
+    `${strategy.title} ${strategy.reason} ${strategy.objective}`;
+
+  const departments =
+    new Set();
+
+  if (
+    /事業|市場|顧客|商品|サービス|企画|検証/.test(
+      text
+    )
+  ) {
+    departments.add(
+      "企画"
+    );
+  }
+
+  if (
+    /技術|実装|開発|自動化|改善|システム/.test(
+      text
+    )
+  ) {
+    departments.add(
+      "技術"
+    );
+  }
+
+  if (
+    /収益|コスト|資金|価格|利益|事業/.test(
+      text
+    )
+  ) {
+    departments.add(
+      "財務"
+    );
+  }
+
+  if (
+    /リスク|安全|法務|規約|契約|問題/.test(
+      text
+    )
+  ) {
+    departments.add(
+      "リスク管理"
+    );
+  }
+
+  if (
+    departments.size ===
+    0
+  ) {
+
+    departments.add(
+      "企画"
+    );
+
+    departments.add(
+      "技術"
+    );
+  }
+
+  return [
+    ...departments
+  ];
+}
+
+function runCouncil(
+  strategy
+) {
+
+  const departments =
+    selectDepartments(
+      strategy
+    );
+
+  const reviews =
+    departments.map(
+      (department) => {
+
+        switch (
+          department
+        ) {
+
+          case "企画":
+
+            return {
+
+              department,
+
+              opinion:
+                "顧客価値・事業性・検証方法を確認します。",
+
+              recommendation:
+                "小さな検証単位に分解します。",
+
+              source:
+                "内部企画部"
+            };
+
+          case "技術":
+
+            return {
+
+              department,
+
+              opinion:
+                "実装可能性・開発負荷・自動化可能性を確認します。",
+
+              recommendation:
+                "最小構成で実行できる形に分解します。",
+
+              source:
+                "内部技術部"
+            };
+
+          case "財務":
+
+            return {
+
+              department,
+
+              opinion:
+                "収益性・コスト・継続可能性を確認します。",
+
+              recommendation:
+                "大きな固定費を避けて検証します。",
+
+              source:
+                "内部財務部"
+            };
+
+          default:
+
+            return {
+
+              department:
+                "リスク管理",
+
+              opinion:
+                "安全・法務・規約・運営リスクを確認します。",
+
+              recommendation:
+                "不可逆な行動を避け、小規模で確認します。",
+
+              source:
+                "内部リスク管理部"
+            };
+        }
+      }
+    );
+
+  return {
+    departments,
+    reviews
+  };
+}
+
+function makeDecision(
+  strategy,
+  council
+) {
+
+  const risk =
+    council.departments.includes(
+      "リスク管理"
+    );
+
+  const waitingHuman =
+    strategy.objective ===
+    "Human Gate管理";
+
+  let decision =
+    "小規模実行";
+
+  if (
+    waitingHuman
+  ) {
+    decision =
+      "人間承認を待つ";
+  }
+
+  if (
+    risk &&
+    !waitingHuman
+  ) {
+    decision =
+      "安全条件を守って小規模実行";
+  }
+
+  return {
+
+    strategyId:
+      strategy.id,
+
+    title:
+      strategy.title,
+
+    decision,
+
+    reason:
+      strategy.reason,
+
+    departments:
+      council.departments,
+
+    reviews:
+      council.reviews,
+
+    nextAction:
+      strategy.title,
+
+    decidedAt:
+      nowISO()
+  };
+}
+
+function displayDecision(
+  decision
+) {
+
+  engineDecision.innerHTML = `
+
+    <div>
+      <strong>
+        ${escapeHTML(
+          decision.decision
+        )}
+      </strong>
+    </div>
+
+    <div>
+      ${escapeHTML(
+        decision.title
+      )}
+    </div>
+
+    <div class="task-meta">
+      理由：
+      ${escapeHTML(
+        decision.reason
+      )}
+    </div>
+
+    <div class="task-meta">
+      協議部署：
+      ${escapeHTML(
+        decision
+          .departments
+          .join("・")
+      )}
+    </div>
+  `;
+
+  companyState.currentPlan =
+    decision.title;
+
+  companyState.nextAction =
+    decision.nextAction;
+
+  companyState.activeDepartments =
+    decision.departments;
+
+  saveCompanyState();
+
+  renderActiveDepartments();
+}
+
+function createStrategyTask(
+  strategy,
+  decision
+) {
+
+  const exists =
+    tasks.find(
+      (task) =>
+        task.title ===
+          strategy.title &&
+        task.status ===
+          "pending"
+    );
+
+  if (exists) {
+    return exists;
+  }
+
+  return addTask(
+    strategy.title,
+    "normal",
+    "CEO Strategy",
+    {
+      strategyId:
+        strategy.id,
+
+      level:
+        "strategy-task"
+    }
+  );
+}
+
+function saveStrategyHistory(
+  strategy,
+  decision
+) {
+
+  strategyHistory.unshift(
+    {
+      strategy,
+      decision,
+      createdAt:
+        nowISO()
+    }
+  );
+
+  strategyHistory =
+    strategyHistory.slice(
+      0,
+      50
+    );
+
+  save(
+    STORAGE_KEYS.strategy,
+    strategyHistory
+  );
 }
 
 // =====================================================
@@ -1431,6 +2600,7 @@ function generateBusinessOpportunity() {
   const templates = {
 
     offense: [
+
       {
         name:
           "小規模AI業務改善サービス",
@@ -1444,7 +2614,7 @@ function generateBusinessOpportunity() {
 
       {
         name:
-          "AIを使った個人向け生産性支援",
+          "AIを使った個人生産性支援",
 
         problem:
           "日常業務や情報整理の効率化",
@@ -1463,9 +2633,11 @@ function generateBusinessOpportunity() {
         test:
           "最小試作品を作り利用反応を確認する"
       }
+
     ],
 
     normal: [
+
       {
         name:
           "既存業務の自動化支援",
@@ -1487,9 +2659,11 @@ function generateBusinessOpportunity() {
         test:
           "特定用途に限定した整理機能を検証する"
       }
+
     ],
 
     defense: [
+
       {
         name:
           "運営リスク確認支援",
@@ -1500,6 +2674,7 @@ function generateBusinessOpportunity() {
         test:
           "リスク項目を整理し確認フローを試す"
       }
+
     ]
   };
 
@@ -1535,7 +2710,8 @@ function generateBusinessOpportunity() {
       "仮説",
 
     priority:
-      companyState.mode === "offense"
+      companyState.mode ===
+      "offense"
         ? "高"
         : "通常",
 
@@ -1579,67 +2755,75 @@ function renderBusiness() {
   businessList.innerHTML =
     businessOpportunities
       .slice(0, 10)
-      .map((business) => `
-        <div class="business-card">
+      .map(
+        (business) => `
 
-          <h4>
-            ${escapeHTML(
-              business.name
-            )}
-          </h4>
+          <div class="business-card">
 
-          <div>
-            <strong>
-              解決対象：
-            </strong>
+            <h4>
+              ${escapeHTML(
+                business.name
+              )}
+            </h4>
 
-            ${escapeHTML(
-              business.problem
-            )}
+            <div>
+              <strong>
+                解決対象：
+              </strong>
+
+              ${escapeHTML(
+                business.problem
+              )}
+            </div>
+
+            <div>
+              <strong>
+                検証方法：
+              </strong>
+
+              ${escapeHTML(
+                business.test
+              )}
+            </div>
+
+            <div class="score-line">
+              優先度：
+              ${escapeHTML(
+                business.priority
+              )}
+              /
+              状態：
+              ${escapeHTML(
+                business.status
+              )}
+            </div>
+
+            <div class="meta">
+              発見：
+              ${escapeHTML(
+                formatDate(
+                  business.createdAt
+                )
+              )}
+            </div>
+
+            <div class="business-actions">
+
+              <button
+                onclick="
+                  promoteBusiness(
+                    '${business.id}'
+                  )
+                ">
+                検証タスク化
+              </button>
+
+            </div>
+
           </div>
 
-          <div>
-            <strong>
-              検証方法：
-            </strong>
-
-            ${escapeHTML(
-              business.test
-            )}
-          </div>
-
-          <div class="score-line">
-            優先度：
-            ${escapeHTML(
-              business.priority
-            )}
-            /
-            状態：
-            ${escapeHTML(
-              business.status
-            )}
-          </div>
-
-          <div class="meta">
-            発見：
-            ${escapeHTML(
-              formatDate(
-                business.createdAt
-              )
-            )}
-          </div>
-
-          <div class="business-actions">
-
-            <button
-              onclick="promoteBusiness('${business.id}')">
-              検証タスク化
-            </button>
-
-          </div>
-
-        </div>
-      `)
+        `
+      )
       .join("");
 }
 
@@ -1658,22 +2842,25 @@ function promoteBusiness(
     return;
   }
 
-  const existing =
+  const exists =
     tasks.find(
       (task) =>
         task.title ===
-        business.test &&
+          business.test &&
         task.source ===
-        "Business Discovery"
+          "Business Discovery"
     );
 
-  if (!existing) {
+  if (!exists) {
 
     addTask(
       business.test,
-      business.priority === "高"
+
+      business.priority ===
+      "高"
         ? "high"
         : "normal",
+
       "Business Discovery"
     );
 
@@ -1705,12 +2892,17 @@ function detectImprovementIdea() {
     tasks.reduce(
       (countMap, task) => {
 
-        countMap[task.title] =
-          (countMap[task.title] || 0) +
+        countMap[
+          task.title
+        ] =
+          (countMap[
+            task.title
+          ] || 0) +
           1;
 
         return countMap;
       },
+
       {}
     );
 
@@ -1722,537 +2914,57 @@ function detectImprovementIdea() {
         count >= 2
     );
 
-  if (repeated) {
-
-    const title =
-      `「${repeated[0]}」の繰り返し処理を改善する`;
-
-    const exists =
-      improvementIdeas.find(
-        (idea) =>
-          idea.title ===
-          title &&
-          idea.status ===
-          "提案"
-      );
-
-    if (exists) {
-      return null;
-    }
-
-    const idea = {
-
-      id:
-        makeId("improve"),
-
-      title,
-
-      reason:
-        "同種タスクが複数回存在するため、処理の統合または自動化余地があります。",
-
-      action:
-        "重複処理の原因を分析し、より効率的な実行方法を検討する。",
-
-      status:
-        "提案",
-
-      createdAt:
-        nowISO()
-    };
-
-    improvementIdeas.unshift(
-      idea
-    );
-
-    save(
-      STORAGE_KEYS.improvements,
-      improvementIdeas
-    );
-
-    return idea;
+  if (!repeated) {
+    return null;
   }
 
-  return null;
-}
-
-function renderImprovements() {
-
-  if (
-    improvementIdeas.length === 0
-  ) {
-
-    improvementList.innerHTML =
-      `<div class="empty">
-        まだ改善候補はありません。
-      </div>`;
-
-    return;
-  }
-
-  improvementList.innerHTML =
-    improvementIdeas
-      .slice(0, 10)
-      .map((idea) => `
-        <div class="improvement-card">
-
-          <h4>
-            ${escapeHTML(
-              idea.title
-            )}
-          </h4>
-
-          <div>
-            理由：
-            ${escapeHTML(
-              idea.reason
-            )}
-          </div>
-
-          <div>
-            次の行動：
-            ${escapeHTML(
-              idea.action
-            )}
-          </div>
-
-          <div class="meta">
-            状態：
-            ${escapeHTML(
-              idea.status
-            )}
-          </div>
-
-        </div>
-      `)
-      .join("");
-}
-
-// =====================================================
-// Departments
-// =====================================================
-
-function selectDepartments(strategy) {
-
-  const text =
-    `${strategy.title} ${strategy.reason} ${strategy.objective}`;
-
-  const departments =
-    new Set();
-
-  if (
-    /事業|市場|顧客|商品|サービス|企画|検証/.test(
-      text
-    )
-  ) {
-    departments.add("企画");
-  }
-
-  if (
-    /技術|実装|開発|自動化|改善|システム/.test(
-      text
-    )
-  ) {
-    departments.add("技術");
-  }
-
-  if (
-    /収益|コスト|資金|価格|利益|事業/.test(
-      text
-    )
-  ) {
-    departments.add("財務");
-  }
-
-  if (
-    /リスク|安全|法務|規約|契約|問題/.test(
-      text
-    )
-  ) {
-    departments.add("リスク管理");
-  }
-
-  if (
-    departments.size === 0
-  ) {
-    departments.add("企画");
-    departments.add("技術");
-  }
-
-  return [
-    ...departments
-  ];
-}
-
-function renderActiveDepartments() {
-
-  const departments =
-    companyState.activeDepartments ||
-    BASE_DEPARTMENTS;
-
-  activeDepartmentList.textContent =
-    departments.join("・");
-}
-
-// =====================================================
-// Strategy
-// =====================================================
-
-function buildStrategy() {
-
-  const analysis =
-    analyzeCompany();
-
-  const latest =
-    analysis.latestMemory;
-
-  let title = "";
-  let reason = "";
-  let objective = "";
-
-  if (
-    analysis.waitingHuman >
-    0
-  ) {
-
-    title =
-      "人間承認待ち案件を確認し、他の業務を整理する";
-
-    reason =
-      "重要な操作は人間承認を待つ必要があるため、承認待ち案件を保持したまま他の業務を進めます。";
-
-    objective =
-      "Human Gate管理";
-
-    return {
-      id: makeId("strategy"),
-      title,
-      reason,
-      objective,
-      goal: companyState.goal,
-      mode: companyState.mode,
-      createdAt: nowISO()
-    };
-  }
-
-  if (
-    analysis.mode ===
-    "offense"
-  ) {
-
-    if (latest) {
-
-      title =
-        "過去の学習を踏まえ、新規事業候補を具体的に検証する";
-
-      reason =
-        "既存の学習結果を次の事業探索へつなげ、検証可能な候補を増やします。";
-
-    } else {
-
-      title =
-        "新規事業候補を探索し、検証優先順位を決める";
-
-      reason =
-        "会社目標達成のため、新しい事業機会を探索します。";
-    }
-
-    objective =
-      "事業探索";
-  }
-
-  else if (
-    analysis.mode ===
-    "defense"
-  ) {
-
-    title =
-      "会社運営上のリスクと改善候補を整理する";
-
-    reason =
-      "将来の問題を減らし、安定した運営基盤を作る必要があります。";
-
-    objective =
-      "安定運営";
-  }
-
-  else {
-
-    if (latest) {
-
-      title =
-        "過去の学習を踏まえ、改善候補を具体化する";
-
-      reason =
-        "実行結果から得た知識を次の改善行動へつなげます。";
-
-    } else {
-
-      title =
-        "既存業務の改善候補を整理し、優先順位を決める";
-
-      reason =
-        "会社目標に対して、現在の運営を改善する余地を確認します.";
-    }
-
-    objective =
-      "継続改善";
-  }
-
-  return {
-    id: makeId("strategy"),
-    title,
-    reason,
-    objective,
-    goal: companyState.goal,
-    mode: companyState.mode,
-    createdAt: nowISO()
-  };
-}
-
-// =====================================================
-// Council
-// =====================================================
-
-function runCouncil(strategy) {
-
-  const departments =
-    selectDepartments(
-      strategy
-    );
-
-  const reviews =
-    departments.map(
-      (department) => {
-
-        switch (department) {
-
-          case "企画":
-            return {
-              department,
-              opinion:
-                "顧客価値・事業性・検証方法を確認します。",
-              recommendation:
-                "小さな検証単位に分解します。",
-              source:
-                "内部企画部"
-            };
-
-          case "技術":
-            return {
-              department,
-              opinion:
-                "実装可能性・開発負荷・自動化可能性を確認します。",
-              recommendation:
-                "最小構成で実行できる形に分解します。",
-              source:
-                "内部技術部"
-            };
-
-          case "財務":
-            return {
-              department,
-              opinion:
-                "収益性・コスト・継続可能性を確認します。",
-              recommendation:
-                "大きな固定費を避けて検証します。",
-              source:
-                "内部財務部"
-            };
-
-          default:
-            return {
-              department: "リスク管理",
-              opinion:
-                "安全・法務・規約・運営リスクを確認します。",
-              recommendation:
-                "不可逆な行動を避け、小規模で確認します。",
-              source:
-                "内部リスク管理部"
-            };
-        }
-      }
-    );
-
-  return {
-    departments,
-    reviews
-  };
-}
-
-// =====================================================
-// CEO Decision
-// =====================================================
-
-function makeDecision(
-  strategy,
-  council
-) {
-
-  const risk =
-    council.departments.includes(
-      "リスク管理"
-    );
-
-  const waitingHuman =
-    strategy.objective ===
-    "Human Gate管理";
-
-  let decision =
-    "小規模実行";
-
-  if (waitingHuman) {
-    decision =
-      "人間承認を待つ";
-  }
-
-  if (risk && !waitingHuman) {
-    decision =
-      "安全条件を守って小規模実行";
-  }
-
-  return {
-    strategyId:
-      strategy.id,
-
-    title:
-      strategy.title,
-
-    decision,
-
-    reason:
-      strategy.reason,
-
-    departments:
-      council.departments,
-
-    reviews:
-      council.reviews,
-
-    nextAction:
-      strategy.title,
-
-    decidedAt:
-      nowISO()
-  };
-}
-
-function displayDecision(
-  decision
-) {
-
-  engineDecision.innerHTML = `
-    <div>
-      <strong>
-        ${escapeHTML(
-          decision.decision
-        )}
-      </strong>
-    </div>
-
-    <div>
-      ${escapeHTML(
-        decision.title
-      )}
-    </div>
-
-    <div class="task-meta">
-      理由：
-      ${escapeHTML(
-        decision.reason
-      )}
-    </div>
-
-    <div class="task-meta">
-      協議部署：
-      ${escapeHTML(
-        decision.departments.join(
-          "・"
-        )
-      )}
-    </div>
-  `;
-
-  companyState.currentPlan =
-    decision.title;
-
-  companyState.nextAction =
-    decision.nextAction;
-
-  companyState.activeDepartments =
-    decision.departments;
-
-  saveCompanyState();
-
-  renderActiveDepartments();
-}
-
-// =====================================================
-// Strategy Task
-// =====================================================
-
-function createStrategyTask(
-  strategy,
-  decision
-) {
+  const title =
+    `「${repeated[0]}」の繰り返し処理を改善する`;
 
   const exists =
-    tasks.find(
-      (task) =>
-        task.title ===
-          strategy.title &&
-        task.status ===
-          "pending"
+    improvementIdeas.find(
+      (idea) =>
+        idea.title ===
+          title &&
+        idea.status ===
+          "提案"
     );
 
   if (exists) {
-    return exists;
+    return null;
   }
 
-  return addTask(
-    strategy.title,
-    "normal",
-    "CEO Strategy",
-    {
-      strategyId:
-        strategy.id,
+  const idea = {
 
-      level:
-        "strategy-task"
-    }
-  );
-}
+    id:
+      makeId("improve"),
 
-// =====================================================
-// Strategy History
-// =====================================================
+    title,
 
-function saveStrategyHistory(
-  strategy,
-  decision
-) {
+    reason:
+      "同種タスクが複数回存在するため、処理の統合または自動化余地があります。",
 
-  strategyHistory.unshift({
-    strategy,
-    decision,
+    action:
+      "重複処理の原因を分析し、より効率的な実行方法を検討する。",
+
+    status:
+      "提案",
+
     createdAt:
       nowISO()
-  });
+  };
 
-  strategyHistory =
-    strategyHistory.slice(
-      0,
-      50
-    );
+  improvementIdeas.unshift(
+    idea
+  );
 
   save(
-    STORAGE_KEYS.strategy,
-    strategyHistory
+    STORAGE_KEYS.improvements,
+    improvementIdeas
   );
-}
 
-// =====================================================
-// Self Improvement
-// =====================================================
+  return idea;
+}
 
 function maybeCreateImprovement() {
 
@@ -2271,8 +2983,65 @@ function maybeCreateImprovement() {
   renderImprovements();
 }
 
+function renderImprovements() {
+
+  if (
+    improvementIdeas.length ===
+    0
+  ) {
+
+    improvementList.innerHTML =
+      `<div class="empty">
+        まだ改善候補はありません。
+      </div>`;
+
+    return;
+  }
+
+  improvementList.innerHTML =
+    improvementIdeas
+      .slice(0, 10)
+      .map(
+        (idea) => `
+
+          <div class="improvement-card">
+
+            <h4>
+              ${escapeHTML(
+                idea.title
+              )}
+            </h4>
+
+            <div>
+              理由：
+              ${escapeHTML(
+                idea.reason
+              )}
+            </div>
+
+            <div>
+              次の行動：
+              ${escapeHTML(
+                idea.action
+              )}
+            </div>
+
+            <div class="meta">
+              状態：
+              ${escapeHTML(
+                idea.status
+              )}
+            </div>
+
+          </div>
+
+        `
+      )
+      .join("");
+}
+
 // =====================================================
-// Founder
+// Founder Room / Council
 // =====================================================
 
 function founderDepartments(
@@ -2288,9 +3057,17 @@ function founderDepartments(
     )
   ) {
 
-    set.add("企画");
-    set.add("技術");
-    set.add("財務");
+    set.add(
+      "企画"
+    );
+
+    set.add(
+      "技術"
+    );
+
+    set.add(
+      "財務"
+    );
   }
 
   if (
@@ -2299,15 +3076,28 @@ function founderDepartments(
     )
   ) {
 
-    set.add("リスク管理");
+    set.add(
+      "リスク管理"
+    );
   }
 
-  if (set.size === 0) {
-    set.add("企画");
-    set.add("技術");
+  if (
+    set.size ===
+    0
+  ) {
+
+    set.add(
+      "企画"
+    );
+
+    set.add(
+      "技術"
+    );
   }
 
-  return [...set];
+  return [
+    ...set
+  ];
 }
 
 function founderReview(
@@ -2317,46 +3107,63 @@ function founderReview(
   const map = {
 
     "企画": {
+
       summary:
         "顧客価値・事業性・方向性を確認します。",
+
       recommendation:
         "小さく検証して反応を確認します。"
     },
 
     "技術": {
+
       summary:
         "実装可能性・技術課題を確認します。",
+
       recommendation:
         "最小構成から始めます。"
     },
 
     "財務": {
+
       summary:
         "収益源・コスト・継続性を確認します。",
+
       recommendation:
         "低コストで検証します。"
     },
 
     "リスク管理": {
+
       summary:
         "安全・法務・規約を確認します。",
+
       recommendation:
         "不可逆な操作を避けます。"
     }
   };
 
   const item =
-    map[department] ||
-    map["企画"];
+    map[
+      department
+    ] ||
+    map[
+      "企画"
+    ];
 
   return {
+
     department,
+
     summary:
       item.summary,
+
     recommendation:
       item.recommendation,
+
     source:
       "内部ルール",
+
     createdAt:
       nowISO()
   };
@@ -2372,7 +3179,9 @@ function founderDecision(
         review.department ===
         "リスク管理"
     )
+
       ? "リスク確認後に小規模検証"
+
       : "検討継続";
 
   item.nextAction =
@@ -2386,7 +3195,9 @@ function createFounderTask(
   item
 ) {
 
-  if (item.taskCreated) {
+  if (
+    item.taskCreated
+  ) {
     return;
   }
 
@@ -2452,7 +3263,9 @@ function processFounderPipeline() {
           item.departments.length
     );
 
-  if (reviewing) {
+  if (
+    reviewing
+  ) {
 
     const department =
       reviewing.departments[
@@ -2498,7 +3311,9 @@ function processFounderPipeline() {
         !item.decision
     );
 
-  if (decisionReady) {
+  if (
+    decisionReady
+  ) {
 
     founderDecision(
       decisionReady
@@ -2527,7 +3342,9 @@ function processFounderPipeline() {
         !item.taskCreated
     );
 
-  if (taskReady) {
+  if (
+    taskReady
+  ) {
 
     createFounderTask(
       taskReady
@@ -2569,6 +3386,7 @@ function renderFounderRoom() {
       .reverse()
       .map(
         (item) => `
+
           <div class="record-card">
 
             <h4>
@@ -2596,20 +3414,24 @@ function renderFounderRoom() {
 
             ${
               item.decision
+
                 ? `
                   <div>
                     <strong>
                       CEO判断：
                     </strong>
+
                     ${escapeHTML(
                       item.decision
                     )}
                   </div>
                 `
+
                 : ""
             }
 
           </div>
+
         `
       )
       .join("");
@@ -2641,6 +3463,7 @@ function renderCouncil() {
             item.reviews
               .map(
                 (review) => `
+
                   <div class="review-box">
 
                     <h4>
@@ -2674,14 +3497,17 @@ function renderCouncil() {
                     </div>
 
                   </div>
+
                 `
               )
               .join("");
 
           const decision =
             item.decision
+
               ? `
                 <div class="decision-box">
+
                   <strong>
                     CEO判断：
                     ${escapeHTML(
@@ -2696,11 +3522,14 @@ function renderCouncil() {
                       ""
                     )}
                   </p>
+
                 </div>
               `
+
               : "";
 
           return `
+
             <div class="council-card">
 
               <h3>
@@ -2717,9 +3546,11 @@ function renderCouncil() {
               </div>
 
               ${reviews}
+
               ${decision}
 
             </div>
+
           `;
         }
       )
@@ -2727,7 +3558,7 @@ function renderCouncil() {
 }
 
 // =====================================================
-// Engine Log
+// Logs
 // =====================================================
 
 function addEngineLog(
@@ -2783,9 +3614,11 @@ function renderEngineLog() {
       .slice(0, 50)
       .map(
         (entry) => `
+
           <div class="log-entry">
 
             <div class="log-time">
+
               サイクル${entry.cycle}
               /
               ${escapeHTML(
@@ -2797,6 +3630,7 @@ function renderEngineLog() {
               ${escapeHTML(
                 entry.type
               )}
+
             </div>
 
             <div class="log-title">
@@ -2806,129 +3640,28 @@ function renderEngineLog() {
             </div>
 
           </div>
+
         `
       )
       .join("");
 }
 
 // =====================================================
-// State Rendering
+// Active Departments
 // =====================================================
 
-function saveCompanyState() {
-  save(
-    STORAGE_KEYS.companyState,
-    companyState
-  );
-}
+function renderActiveDepartments() {
 
-function getModeLabel(mode) {
-  if (mode === "offense") {
-    return "攻め";
-  }
+  const departments =
+    companyState.activeDepartments ||
+    BASE_DEPARTMENTS;
 
-  if (mode === "defense") {
-    return "守り";
-  }
-
-  return "通常";
-}
-
-function getOperationalPace() {
-
-  const hour =
-    new Date().getHours();
-
-  const pending =
-    tasks.filter(
-      (task) =>
-        task.status ===
-        "pending"
-    ).length;
-
-  let seconds =
-    60;
-
-  if (
-    companyState.mode ===
-    "offense"
-  ) {
-    seconds =
-      45;
-  }
-
-  if (
-    companyState.mode ===
-    "defense"
-  ) {
-    seconds =
-      90;
-  }
-
-  if (
-    hour >= 23 ||
-    hour < 7
-  ) {
-    seconds *= 2;
-  }
-
-  if (
-    pending >= 3
-  ) {
-    seconds *= 2;
-  }
-
-  return {
-    seconds,
-    label:
-      seconds <= 45
-        ? "高速"
-        : seconds <= 60
-        ? "通常"
-        : seconds <= 120
-        ? "低速"
-        : "抑制"
-  };
-}
-
-function renderCompanyState() {
-
-  companyGoalInput.value =
-    companyState.goal ||
-    "";
-
-  companyModeSelect.value =
-    companyState.mode ||
-    "normal";
-
-  engineStatus.textContent =
-    companyState.running
-      ? "自律運転中"
-      : "待機中";
-
-  ceoStatus.textContent =
-    companyState.currentFocus ||
-    "観測中";
-
-  engineSummary.textContent =
-    `目標：${companyState.goal || "未設定"} / ` +
-    `モード：${getModeLabel(
-      companyState.mode
-    )} / ` +
-    `サイクル：${companyState.cycleCount}回 / ` +
-    `次の行動：${companyState.nextAction || "未定"}`;
-
-  const pace =
-    getOperationalPace();
-
-  paceStatus.textContent =
-    pace.label;
-
-  renderActiveDepartments();
+  activeDepartmentList.textContent =
+    departments.join("・");
 }
 
 // =====================================================
-// Main Engine Cycle
+// Main Company Cycle
 // =====================================================
 
 async function runCompanyCycle() {
@@ -2940,7 +3673,9 @@ async function runCompanyCycle() {
   cycleBusy =
     true;
 
-  companyState.cycleCount += 1;
+  companyState.cycleCount +=
+    1;
+
   companyState.lastCycleAt =
     nowISO();
 
@@ -2955,9 +3690,9 @@ async function runCompanyCycle() {
     "CEOが会社全体の状態を確認しています。"
   );
 
-  // ---------------------------------------------
-  // 1. Founder
-  // ---------------------------------------------
+  // -------------------------------------------------
+  // Founder案件
+  // -------------------------------------------------
 
   if (
     processFounderPipeline()
@@ -2975,9 +3710,9 @@ async function runCompanyCycle() {
     return;
   }
 
-  // ---------------------------------------------
-  // 2. Pending Human Gate
-  // ---------------------------------------------
+  // -------------------------------------------------
+  // Human Gate
+  // -------------------------------------------------
 
   const pendingGate =
     humanGates.find(
@@ -2986,7 +3721,9 @@ async function runCompanyCycle() {
         "pending"
     );
 
-  if (pendingGate) {
+  if (
+    pendingGate
+  ) {
 
     companyState.currentFocus =
       "人間承認待ち";
@@ -3015,9 +3752,9 @@ async function runCompanyCycle() {
   companyState.waiting =
     false;
 
-  // ---------------------------------------------
-  // 3. Evaluate completed tasks
-  // ---------------------------------------------
+  // -------------------------------------------------
+  // 未評価タスク
+  // -------------------------------------------------
 
   const unevaluated =
     tasks
@@ -3029,11 +3766,17 @@ async function runCompanyCycle() {
       )
       .sort(
         (a, b) =>
-          new Date(b.updatedAt) -
-          new Date(a.updatedAt)
+          new Date(
+            b.updatedAt
+          ) -
+          new Date(
+            a.updatedAt
+          )
       )[0];
 
-  if (unevaluated) {
+  if (
+    unevaluated
+  ) {
 
     companyState.currentFocus =
       "実行結果を評価中";
@@ -3049,12 +3792,12 @@ async function runCompanyCycle() {
       unevaluated
     );
 
+    maybeCreateImprovement();
+
     addEngineLog(
       "結果評価",
       `実行結果を評価しました：${unevaluated.title}`
     );
-
-    maybeCreateImprovement();
 
     renderTasks();
     renderCompanyMemory();
@@ -3072,9 +3815,9 @@ async function runCompanyCycle() {
     return;
   }
 
-  // ---------------------------------------------
-  // 4. Execute pending task
-  // ---------------------------------------------
+  // -------------------------------------------------
+  // 未完了タスク
+  // -------------------------------------------------
 
   const pendingTask =
     tasks
@@ -3093,7 +3836,9 @@ async function runCompanyCycle() {
           ] || 2)
       )[0];
 
-  if (pendingTask) {
+  if (
+    pendingTask
+  ) {
 
     companyState.currentFocus =
       "タスク実行中";
@@ -3111,17 +3856,15 @@ async function runCompanyCycle() {
         pendingTask
       );
 
-    if (
-      result === null
-    ) {
+    if (!result) {
 
       companyState.currentFocus =
-        "人間承認待ち";
+        "Executor待機";
+
+      companyState.nextAction =
+        "Python Local Executorの接続と実行結果を確認する";
 
       saveCompanyState();
-
-      renderTasks();
-      renderHumanGates();
       renderCompanyState();
 
       cycleBusy =
@@ -3163,7 +3906,9 @@ async function runCompanyCycle() {
       "観測中";
 
     companyState.nextAction =
-      pendingTask.evaluation.nextAction;
+      pendingTask
+        .evaluation
+        .nextAction;
 
     saveCompanyState();
     renderCompanyState();
@@ -3174,9 +3919,9 @@ async function runCompanyCycle() {
     return;
   }
 
-  // ---------------------------------------------
-  // 5. No task -> Strategy
-  // ---------------------------------------------
+  // -------------------------------------------------
+  // 戦略立案
+  // -------------------------------------------------
 
   companyState.currentFocus =
     "CEO戦略立案中";
@@ -3192,14 +3937,15 @@ async function runCompanyCycle() {
     `未完了${analysis.pending}件 / 完了${analysis.completed}件 / Human Gate${analysis.waitingHuman}件 / Memory${analysis.memory}件を確認しました。`
   );
 
-  // ---------------------------------------------
-  // 6. Business Discovery
-  // ---------------------------------------------
+  // -------------------------------------------------
+  // Business Discovery
+  // -------------------------------------------------
 
   if (
     companyState.mode ===
       "offense" &&
-    analysis.businesses < 5
+    analysis.businesses <
+      5
   ) {
 
     const opportunity =
@@ -3213,21 +3959,21 @@ async function runCompanyCycle() {
     renderBusiness();
   }
 
-  // ---------------------------------------------
-  // 7. Strategy
-  // ---------------------------------------------
+  // -------------------------------------------------
+  // Strategy
+  // -------------------------------------------------
 
   const strategy =
     buildStrategy();
 
   addEngineLog(
     "戦略立案",
-    `CEOが次の戦略を作りました：${strategy.title}`
+    `CEOが次の仕事を提案しました：${strategy.title}`
   );
 
-  // ---------------------------------------------
-  // 8. Department Council
-  // ---------------------------------------------
+  // -------------------------------------------------
+  // Council
+  // -------------------------------------------------
 
   companyState.currentFocus =
     "部署協議中";
@@ -3245,9 +3991,9 @@ async function runCompanyCycle() {
     `必要部署：${council.departments.join("・")}`
   );
 
-  // ---------------------------------------------
-  // 9. CEO Decision
-  // ---------------------------------------------
+  // -------------------------------------------------
+  // CEO Decision
+  // -------------------------------------------------
 
   companyState.currentFocus =
     "CEO判断中";
@@ -3271,13 +4017,13 @@ async function runCompanyCycle() {
   );
 
   addEngineLog(
-    "CEO判断",
+    "CEO戦略決定",
     `${decision.decision}：「${decision.title}」`
   );
 
-  // ---------------------------------------------
-  // 10. Wait decision
-  // ---------------------------------------------
+  // -------------------------------------------------
+  // Human wait
+  // -------------------------------------------------
 
   if (
     decision.decision ===
@@ -3308,15 +4054,9 @@ async function runCompanyCycle() {
     return;
   }
 
-  // ---------------------------------------------
-  // 11. Create Task
-  // ---------------------------------------------
-
-  companyState.currentFocus =
-    "タスク生成中";
-
-  saveCompanyState();
-  renderCompanyState();
+  // -------------------------------------------------
+  // Task
+  // -------------------------------------------------
 
   const task =
     createStrategyTask(
@@ -3324,87 +4064,104 @@ async function runCompanyCycle() {
       decision
     );
 
-  if (task) {
-
-    addEngineLog(
-      "自律タスク生成",
-      `CEO判断からTask Coreへ登録しました：${task.title}`
-    );
-
-    renderTasks();
-
-    // -------------------------------------------
-    // 12. Execute immediately
-    // -------------------------------------------
+  if (!task) {
 
     companyState.currentFocus =
-      "タスク実行中";
+      "観測中";
 
     saveCompanyState();
+
+    cycleBusy =
+      false;
+
     renderCompanyState();
 
-    const result =
-      await executeTask(
-        task
-      );
-
-    if (result === null) {
-
-      companyState.currentFocus =
-        "人間承認待ち";
-
-      companyState.waiting =
-        true;
-
-      saveCompanyState();
-
-      renderTasks();
-      renderHumanGates();
-      renderCompanyState();
-
-      cycleBusy =
-        false;
-
-      return;
-    }
-
-    evaluateTask(
-      task
-    );
-
-    recordMemoryFromTask(
-      task
-    );
-
-    maybeCreateImprovement();
-
-    addEngineLog(
-      "実行完了",
-      `タスクを実行しました：${task.title}`
-    );
-
-    addEngineLog(
-      "結果評価",
-      `CEO評価：${task.evaluation.level}`
-    );
-
-    addEngineLog(
-      "会社記憶",
-      "今回の学習を次の判断へ引き継ぎます。"
-    );
+    return;
   }
 
-  // ---------------------------------------------
-  // 13. Next State
-  // ---------------------------------------------
+  addEngineLog(
+    "自律タスク生成",
+    `CEO判断からTask Coreへ登録しました：${task.title}`
+  );
+
+  renderTasks();
+
+  // -------------------------------------------------
+  // Real Executor
+  // -------------------------------------------------
+
+  companyState.currentFocus =
+    "タスク実行中";
+
+  saveCompanyState();
+  renderCompanyState();
+
+  const result =
+    await executeTask(
+      task
+    );
+
+  if (!result) {
+
+    companyState.currentFocus =
+      "Executor待機";
+
+    companyState.waiting =
+      true;
+
+    companyState.nextAction =
+      "Python Local Executorの接続と実行結果を確認する";
+
+    saveCompanyState();
+
+    cycleBusy =
+      false;
+
+    renderCompanyState();
+
+    return;
+  }
+
+  // -------------------------------------------------
+  // Evaluation
+  // -------------------------------------------------
+
+  evaluateTask(
+    task
+  );
+
+  recordMemoryFromTask(
+    task
+  );
+
+  maybeCreateImprovement();
+
+  addEngineLog(
+    "実行完了",
+    `タスクを実行しました：${task.title}`
+  );
+
+  addEngineLog(
+    "結果評価",
+    `CEO評価：${task.evaluation.level}`
+  );
+
+  addEngineLog(
+    "会社記憶",
+    "今回の学習を次の判断へ引き継ぎます。"
+  );
+
+  // -------------------------------------------------
+  // Finish
+  // -------------------------------------------------
 
   companyState.currentFocus =
     "観測中";
 
   companyState.nextAction =
-    taskNextAction(
-      tasks
-    );
+    task
+      .evaluation
+      .nextAction;
 
   companyState.waiting =
     false;
@@ -3412,7 +4169,7 @@ async function runCompanyCycle() {
   saveCompanyState();
 
   engineSummary.textContent =
-    "会社状態分析 → 戦略 → 部署協議 → CEO判断 → 実行 → 評価 → 記憶まで完了しました。";
+    "会社状態分析 → 戦略 → 部署協議 → CEO判断 → 実ローカル実行 → 評価 → 記憶まで完了しました。";
 
   renderTasks();
   renderCompanyMemory();
@@ -3426,50 +4183,14 @@ async function runCompanyCycle() {
 }
 
 // =====================================================
-// Next Action
-// =====================================================
-
-function taskNextAction(
-  taskList
-) {
-
-  const latestCompleted =
-    taskList
-      .filter(
-        (task) =>
-          task.status ===
-          "completed"
-      )
-      .sort(
-        (a, b) =>
-          new Date(b.updatedAt) -
-          new Date(a.updatedAt)
-      )[0];
-
-  if (
-    latestCompleted &&
-    latestCompleted.evaluation
-  ) {
-
-    return (
-      latestCompleted
-        .evaluation
-        .nextAction
-    );
-  }
-
-  return (
-    "会社状態を分析して次の仕事を決定する"
-  );
-}
-
-// =====================================================
-// Autonomous Engine
+// Autonomous Operation
 // =====================================================
 
 function restartEngineTimer() {
 
-  if (engineInterval) {
+  if (
+    engineInterval
+  ) {
 
     clearInterval(
       engineInterval
@@ -3493,7 +4214,9 @@ function restartEngineTimer() {
         restartEngineTimer();
 
       },
-      pace.seconds * 1000
+
+      pace.seconds *
+        1000
     );
 }
 
@@ -3527,7 +4250,9 @@ function stopAutonomousEngine() {
   companyState.running =
     false;
 
-  if (engineInterval) {
+  if (
+    engineInterval
+  ) {
 
     clearInterval(
       engineInterval
@@ -3548,27 +4273,7 @@ function stopAutonomousEngine() {
 }
 
 // =====================================================
-// Business Discovery Button
-// =====================================================
-
-discoverBusinessButton.addEventListener(
-  "click",
-  () => {
-
-    const opportunity =
-      generateBusinessOpportunity();
-
-    addEngineLog(
-      "Business Discovery",
-      `手動探索で事業候補を追加しました：${opportunity.name}`
-    );
-
-    renderBusiness();
-  }
-);
-
-// =====================================================
-// Basic Test
+// Events
 // =====================================================
 
 testButton.addEventListener(
@@ -3591,10 +4296,6 @@ testButton.addEventListener(
   }
 );
 
-// =====================================================
-// Manual Task
-// =====================================================
-
 addTaskButton.addEventListener(
   "click",
   () => {
@@ -3614,10 +4315,6 @@ addTaskButton.addEventListener(
       "";
   }
 );
-
-// =====================================================
-// Founder Room
-// =====================================================
 
 submitFounderButton.addEventListener(
   "click",
@@ -3670,10 +4367,6 @@ submitFounderButton.addEventListener(
   }
 );
 
-// =====================================================
-// Company Goal
-// =====================================================
-
 companyGoalInput.addEventListener(
   "input",
   () => {
@@ -3686,10 +4379,6 @@ companyGoalInput.addEventListener(
     renderCompanyState();
   }
 );
-
-// =====================================================
-// Company Mode
-// =====================================================
 
 companyModeSelect.addEventListener(
   "change",
@@ -3704,13 +4393,10 @@ companyModeSelect.addEventListener(
   }
 );
 
-// =====================================================
-// Engine Buttons
-// =====================================================
-
 runCycleButton.addEventListener(
   "click",
   () => {
+
     runCompanyCycle();
   }
 );
@@ -3718,6 +4404,7 @@ runCycleButton.addEventListener(
 startEngineButton.addEventListener(
   "click",
   () => {
+
     startAutonomousEngine();
   }
 );
@@ -3725,7 +4412,34 @@ startEngineButton.addEventListener(
 stopEngineButton.addEventListener(
   "click",
   () => {
+
     stopAutonomousEngine();
+  }
+);
+
+checkExecutorButton.addEventListener(
+  "click",
+  () => {
+
+    checkExecutorConnection(
+      true
+    );
+  }
+);
+
+discoverBusinessButton.addEventListener(
+  "click",
+  () => {
+
+    const opportunity =
+      generateBusinessOpportunity();
+
+    addEngineLog(
+      "Business Discovery",
+      `事業候補を追加しました：${opportunity.name}`
+    );
+
+    renderBusiness();
   }
 );
 
@@ -3733,19 +4447,14 @@ stopEngineButton.addEventListener(
 // Initialize
 // =====================================================
 
-function initialize() {
+async function initialize() {
 
   systemStatus.textContent =
     "正常稼働";
 
-  executorStatus.textContent =
-    "Local Executor";
-
   apiStatus.textContent =
     "使用しない";
 
-  // ページ再読み込み時に
-  // ブラウザ上の自律タイマーだけは一旦停止
   companyState.running =
     false;
 
@@ -3768,6 +4477,10 @@ function initialize() {
   renderCompanyMemory();
 
   renderCompanyState();
+
+  await checkExecutorConnection(
+    false
+  );
 }
 
 initialize();

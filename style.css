@@ -51,6 +51,10 @@ header p {
   margin-bottom: 10px;
 }
 
+/* =========================
+   Company Engine
+========================= */
+
 .status-grid {
   display: grid;
   grid-template-columns:
@@ -91,6 +95,7 @@ header p {
   border: 1px solid #bbb;
   border-radius: 8px;
   font-size: 14px;
+  background: #fff;
 }
 
 button {
@@ -104,6 +109,10 @@ button {
 
 button:hover {
   background: #f0f0f0;
+}
+
+button:active {
+  transform: translateY(1px);
 }
 
 .button-row {
@@ -123,6 +132,10 @@ button:hover {
   display: block;
   margin-bottom: 5px;
 }
+
+/* =========================
+   Logs
+========================= */
 
 .log-area,
 .memory-area,
@@ -153,12 +166,20 @@ button:hover {
   margin: 3px 0;
 }
 
+/* =========================
+   Forms
+========================= */
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr auto auto;
   gap: 10px;
   align-items: center;
 }
+
+/* =========================
+   Common Card Lists
+========================= */
 
 .task-list,
 .record-list,
@@ -197,6 +218,10 @@ button:hover {
   margin: 4px 0;
 }
 
+/* =========================
+   Buttons inside cards
+========================= */
+
 .task-buttons,
 .card-buttons,
 .business-actions {
@@ -206,6 +231,10 @@ button:hover {
   margin-top: 12px;
 }
 
+/* =========================
+   Status
+========================= */
+
 .status-tag {
   display: inline-block;
   padding: 2px 7px;
@@ -213,6 +242,10 @@ button:hover {
   background: #eee;
   font-size: 12px;
 }
+
+/* =========================
+   Council
+========================= */
 
 .review-box {
   border: 1px solid #ddd;
@@ -234,6 +267,10 @@ button:hover {
   background: #f8f8f8;
 }
 
+/* =========================
+   Evaluation
+========================= */
+
 .evaluation-box {
   margin-top: 12px;
   padding: 10px;
@@ -245,6 +282,10 @@ button:hover {
   display: block;
   margin-bottom: 4px;
 }
+
+/* =========================
+   Memory
+========================= */
 
 .memory-entry {
   border-bottom: 1px solid #e5e5e5;
@@ -264,6 +305,10 @@ button:hover {
   color: #777;
   margin-bottom: 5px;
 }
+
+/* =========================
+   Departments
+========================= */
 
 .department-grid {
   display: grid;
@@ -290,18 +335,34 @@ button:hover {
   background: #fafafa;
 }
 
+/* =========================
+   Business Discovery
+========================= */
+
 .business-card .score-line {
   margin: 6px 0;
   font-size: 13px;
 }
 
+/* =========================
+   Human Gate
+========================= */
+
 .gate-card.pending {
   border-left: 4px solid #777;
 }
 
+/* =========================
+   Self Improvement
+========================= */
+
 .improvement-card {
   border-left: 4px solid #777;
 }
+
+/* =========================
+   Utility
+========================= */
 
 .muted,
 .empty {
@@ -313,6 +374,10 @@ button:hover {
   color: #777;
 }
 
+/* =========================
+   Responsive
+========================= */
+
 @media (max-width: 700px) {
   .form-row {
     grid-template-columns: 1fr;
@@ -320,6 +385,10 @@ button:hover {
 
   .button-row {
     flex-direction: column;
+  }
+
+  .button-row button {
+    width: 100%;
   }
 
   .container {

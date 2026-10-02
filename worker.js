@@ -1,4 +1,5 @@
-const RUNTIME_VERSION = "6.1.1-self-organizing-company";
+const RUNTIME_VERSION = "6.1.2-self-maintaining-company";
+const SCHEMA_VERSION = "6.1.2";
 
 const DEFAULT_DEPARTMENTS = [
   "企画",
@@ -66,12 +67,16 @@ function nowIso() {
 }
 
 function randomId(prefix = "id") {
-  const random =
+  const raw =
     typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
-  return `${prefix}_${random}`;
+  return `${prefix}_${raw}`;
+}
+
+function safeString(value, fallback = "") {
+  return typeof value === "string" ? value.trim() : fallback;
 }
 
 function jsonResponse(data, status = 200) {
@@ -86,7 +91,11 @@ function jsonResponse(data, status = 200) {
   });
 }
 
-function textResponse(text, status = 200, type = "text/plain; charset=utf-8") {
+function textResponse(
+  text,
+  status = 200,
+  type = "text/plain; charset=utf-8"
+) {
   return new Response(text, {
     status,
     headers: {
@@ -104,10 +113,6 @@ async function readJSON(request) {
   }
 }
 
-function safeString(value, fallback = "") {
-  return typeof value === "string" ? value.trim() : fallback;
-}
-
 function clampNumber(value, min, max, fallback) {
   const n = Number(value);
 
@@ -118,35 +123,293 @@ function clampNumber(value, min, max, fallback) {
   return Math.max(min, Math.min(max, n));
 }
 
-async function getStore(env, key, fallback = null) {
-  const row = await env.DB
-    .prepare(
-      `
-      SELECT value_json
-      FROM company_store
-      WHERE key = ?
-      LIMIT 1
-      `
-    )
-    .bind(key)
-    .first();
+function normalizeTaskStatus(status) {
+  const s = safeString(status, "pending").toLowerCase();
+
+  const aliases = {
+    pending: "pending",
+    waiting: "pending",
+    "保留中": "pending",
+
+    running: "running",
+    "実行中": "running",
+
+    completed: "completed",
+    complete: "completed",
+    done: "completed",
+    "完了": "completed",
+
+    failed: "failed",
+    error: "failed",
+    "失敗": "failed",
+
+    waiting_human: "waiting_human",
+    human_wait: "waiting_human",
+    "人間を待っています": "waiting_human",
+
+    approved: "approved",
+    "承認": "approved",
+
+    rejected: "rejected",
+    "拒否": "rejected",
+  };
+
+  return aliases[s] ?? status ?? "pending";
+}
+
+function normalizeTask(raw) {
+  const task =
+    raw && typeof raw === "object"
+      ? { ...raw }
+      : {};
+
+  const pipeline =
+    task.pipeline &&
+    typeof task.pipeline === "object"
+      ? { ...task.pipeline }
+      : {};
+
+  return {
+    ...task,
+
+    id:
+      task.id ??
+      randomId("task"),
+
+    type:
+      safeString(
+        task.type,
+        task.requiresHuman
+          ? "human_gate"
+          : "internal_task"
+      ),
+
+    action:
+      safeString(
+        task.action,
+        task.executor ?? "internal_analysis"
+      ),
+
+    title:
+      safeString(
+        task.title,
+        "内部タスク"
+      ),
+
+    description:
+      safeString(
+        task.description,
+        ""
+      ),
+
+    department:
+      safeString(
+        task.department,
+        task.departmentName ?? "企画"
+      ),
+
+    priority:
+      clampNumber(
+        task.priority,
+        1,
+        100,
+        50
+      ),
+
+    status:
+      normalizeTaskStatus(
+        task.status
+      ),
+
+    internalOnly:
+      task.internalOnly === true,
+
+    safeAutonomy:
+      task.safeAutonomy === true,
+
+    externalAction:
+      task.externalAction === true ||
+      task.requiresHuman === true,
+
+    requiresHuman:
+      task.requiresHuman === true ||
+      task.type === "human_gate",
+
+    businessId:
+      safeString(
+        task.businessId,
+        pipeline.businessId ?? ""
+      ) || null,
+
+    input:
+      task.input &&
+      typeof task.input === "object"
+        ? task.input
+        : {},
+
+    pipeline,
+
+    createdAt:
+      task.createdAt ??
+      nowIso(),
+
+    updatedAt:
+      task.updatedAt ??
+      nowIso(),
+  };
+}
+
+function normalizeDepartments(input) {
+  const list =
+    Array.isArray(input)
+      ? input
+      : [];
+
+  const merged = [
+    ...DEFAULT_DEPARTMENTS,
+    ...Object.keys(
+      GENERATED_DEPARTMENTS
+    ),
+    ...list,
+  ];
+
+  return [
+    ...new Set(
+      merged
+        .map((name) =>
+          safeString(name)
+        )
+        .filter(Boolean)
+    ),
+  ];
+}
+
+function defaultCompany() {
+  return {
+    cycleCount: 0,
+
+    currentFocus:
+      "会社初期化完了",
+
+    nextAction:
+      "会社状態を監査する",
+
+    mode:
+      "autonomous",
+
+    goal:
+      "人間の管理負担を削減しながら、自律的に事業を発見・実行・改善する",
+
+    runtimeVersion:
+      RUNTIME_VERSION,
+
+    schemaVersion:
+      SCHEMA_VERSION,
+
+    externalActions:
+      false,
+
+    externalAI:
+      false,
+
+    humanGates:
+      [],
+
+    businesses:
+      [],
+
+    companyMemory:
+      [],
+
+    researchEvidenceIndex:
+      [],
+
+    customers:
+      [],
+
+    outcomes:
+      [],
+
+    departments:
+      normalizeDepartments([]),
+
+    capabilitySnapshot:
+      {},
+
+    organizationHistory:
+      [],
+
+    migration: {
+      lastRunAt:
+        null,
+
+      version:
+        null,
+
+      businessAliases:
+        {},
+
+      repairs:
+        [],
+    },
+
+    maintenance: {
+      lastAuditAt:
+        null,
+
+      lastRepairAt:
+        null,
+
+      lastAnomalies:
+        [],
+    },
+  };
+}
+
+async function getStore(
+  env,
+  key,
+  fallback = null
+) {
+  const row =
+    await env.DB
+      .prepare(
+        `
+        SELECT value_json
+        FROM company_store
+        WHERE key = ?
+        LIMIT 1
+        `
+      )
+      .bind(key)
+      .first();
 
   if (!row) {
     return fallback;
   }
 
   try {
-    return JSON.parse(row.value_json);
+    return JSON.parse(
+      row.value_json
+    );
   } catch {
     return fallback;
   }
 }
 
-async function setStore(env, key, value) {
+async function setStore(
+  env,
+  key,
+  value
+) {
   await env.DB
     .prepare(
       `
-      INSERT INTO company_store (key, value_json, updated_at)
+      INSERT INTO company_store (
+        key,
+        value_json,
+        updated_at
+      )
       VALUES (?, ?, ?)
       ON CONFLICT(key)
       DO UPDATE SET
@@ -154,23 +417,31 @@ async function setStore(env, key, value) {
         updated_at = excluded.updated_at
       `
     )
-    .bind(key, JSON.stringify(value), nowIso())
+    .bind(
+      key,
+      JSON.stringify(value),
+      nowIso()
+    )
     .run();
 
   return value;
 }
 
-async function updateRuntimeMeta(env, patch = {}) {
-  const current = await env.DB
-    .prepare(
-      `
-      SELECT *
-      FROM runtime_meta
-      WHERE id = 1
-      LIMIT 1
-      `
-    )
-    .first();
+async function updateRuntimeMeta(
+  env,
+  patch = {}
+) {
+  const current =
+    await env.DB
+      .prepare(
+        `
+        SELECT *
+        FROM runtime_meta
+        WHERE id = 1
+        LIMIT 1
+        `
+      )
+      .first();
 
   const lastHeartbeatAt =
     patch.lastHeartbeatAt !== undefined
@@ -180,7 +451,9 @@ async function updateRuntimeMeta(env, patch = {}) {
   const cycleCount =
     patch.cycleCount !== undefined
       ? patch.cycleCount
-      : Number(current?.cycle_count ?? 0);
+      : Number(
+          current?.cycle_count ?? 0
+        );
 
   await env.DB
     .prepare(
@@ -201,250 +474,1222 @@ async function updateRuntimeMeta(env, patch = {}) {
     .run();
 }
 
-function normalizeDepartments(input) {
-  const list = Array.isArray(input) ? input : [];
+function normalizeBusiness(raw) {
+  const business =
+    raw &&
+    typeof raw === "object"
+      ? { ...raw }
+      : {};
 
-  const merged = [
-    ...DEFAULT_DEPARTMENTS,
-    ...Object.keys(GENERATED_DEPARTMENTS),
-    ...list,
+  return {
+    ...business,
+
+    id:
+      safeString(
+        business.id,
+        randomId("business")
+      ),
+
+    name:
+      safeString(
+        business.name ??
+          business.title,
+        "未定義事業"
+      ),
+
+    problem:
+      safeString(
+        business.problem,
+        ""
+      ),
+
+    target:
+      safeString(
+        business.target ??
+          business.customer,
+        ""
+      ),
+
+    value:
+      safeString(
+        business.value,
+        ""
+      ),
+
+    status:
+      safeString(
+        business.status,
+        "hypothesis"
+      ),
+
+    createdAt:
+      business.createdAt ??
+      nowIso(),
+  };
+}
+
+function businessNameFromTask(
+  task
+) {
+  const title =
+    safeString(
+      task.title,
+      ""
+    );
+
+  if (!title) {
+    return "";
+  }
+
+  const separators = [
+    ":",
+    "：",
+    " — ",
+    " - ",
   ];
 
+  for (
+    const separator of separators
+  ) {
+    const index =
+      title.indexOf(
+        separator
+      );
+
+    if (
+      index >= 0 &&
+      index <
+        title.length -
+          separator.length
+    ) {
+      const candidate =
+        title
+          .slice(
+            index +
+              separator.length
+          )
+          .trim();
+
+      if (
+        candidate.length >= 5
+      ) {
+        return candidate;
+      }
+    }
+  }
+
+  return "";
+}
+
+function chooseCanonicalBusiness(
+  companyBusinesses,
+  tasks
+) {
+  const businesses =
+    companyBusinesses.map(
+      normalizeBusiness
+    );
+
+  if (
+    businesses.length === 0
+  ) {
+    return null;
+  }
+
+  const counts =
+    new Map();
+
+  for (
+    const task of tasks
+  ) {
+    const id =
+      safeString(
+        task.businessId,
+        ""
+      );
+
+    if (!id) {
+      continue;
+    }
+
+    counts.set(
+      id,
+      (counts.get(id) ?? 0) +
+        1
+    );
+  }
+
+  const exactPrimary =
+    businesses.find(
+      (business) =>
+        counts.has(
+          business.id
+        )
+    );
+
+  return (
+    exactPrimary ??
+    businesses[0]
+  );
+}
+
+function uniqueTaskBusinessIds(
+  tasks
+) {
   return [
     ...new Set(
-      merged
-        .map((name) => safeString(name))
+      tasks
+        .map((task) =>
+          safeString(
+            task.businessId,
+            ""
+          )
+        )
         .filter(Boolean)
     ),
   ];
 }
 
-function defaultCompany() {
+function addAlias(
+  company,
+  oldId,
+  newId
+) {
+  company.migration =
+    company.migration ??
+    {};
+
+  company.migration.businessAliases =
+    company.migration
+      .businessAliases ??
+    {};
+
+  company.migration.businessAliases[
+    oldId
+  ] = newId;
+}
+
+function applyBusinessAlias(
+  company,
+  id
+) {
+  if (!id) {
+    return id;
+  }
+
+  const aliases =
+    company.migration
+      ?.businessAliases ??
+    {};
+
+  return (
+    aliases[id] ??
+    id
+  );
+}
+
+function canonicalizeBusinessAliasObject(
+  business,
+  company
+) {
+  const alias =
+    applyBusinessAlias(
+      company,
+      business.id
+    );
+
+  if (
+    alias !==
+    business.id
+  ) {
+    return {
+      ...business,
+      id: alias,
+    };
+  }
+
+  return business;
+}
+
+function mergeBusinessIdentity(
+  company,
+  tasks
+) {
+  company.businesses =
+    Array.isArray(
+      company.businesses
+    )
+      ? company.businesses.map(
+          normalizeBusiness
+        )
+      : [];
+
+  if (
+    company.businesses.length ===
+    0
+  ) {
+    const inferredNames =
+      tasks
+        .map(
+          businessNameFromTask
+        )
+        .filter(Boolean);
+
+    const inferredName =
+      inferredNames[0] ??
+      "自動生成事業";
+
+    company.businesses.push({
+      id:
+        randomId(
+          "business"
+        ),
+
+      name:
+        inferredName,
+
+      problem:
+        "過去タスクから再構成された事業仮説。",
+
+      target:
+        "未定義",
+
+      value:
+        "未定義",
+
+      status:
+        "migrated",
+
+      createdAt:
+        nowIso(),
+    });
+  }
+
+  const canonical =
+    chooseCanonicalBusiness(
+      company.businesses,
+      tasks
+    );
+
+  const canonicalKey =
+    canonical.name
+      .trim()
+      .toLowerCase();
+
+  const duplicateIds =
+    [];
+
+  for (
+    const business of
+      company.businesses
+  ) {
+    if (
+      business.id ===
+      canonical.id
+    ) {
+      continue;
+    }
+
+    if (
+      business.name
+        .trim()
+        .toLowerCase() ===
+      canonicalKey
+    ) {
+      duplicateIds.push(
+        business.id
+      );
+    }
+  }
+
+  for (
+    const duplicateId of
+      duplicateIds
+  ) {
+    addAlias(
+      company,
+      duplicateId,
+      canonical.id
+    );
+  }
+
+  const aliases =
+    company.migration
+      .businessAliases ??
+    {};
+
+  const names =
+    new Set(
+      company.businesses.map(
+        (business) =>
+          business.name
+            .trim()
+            .toLowerCase()
+      )
+    );
+
+  for (
+    const task of tasks
+  ) {
+    const oldId =
+      safeString(
+        task.businessId,
+        ""
+      );
+
+    if (!oldId) {
+      continue;
+    }
+
+    if (
+      aliases[oldId]
+    ) {
+      task.businessId =
+        aliases[oldId];
+
+      if (
+        task.pipeline &&
+        typeof task.pipeline ===
+          "object"
+      ) {
+        task.pipeline.businessId =
+          aliases[oldId];
+      }
+
+      continue;
+    }
+
+    if (
+      oldId ===
+      canonical.id
+    ) {
+      continue;
+    }
+
+    const titleName =
+      businessNameFromTask(
+        task
+      );
+
+    if (
+      titleName &&
+      names.has(
+        titleName
+          .trim()
+          .toLowerCase()
+      )
+    ) {
+      const matching =
+        company.businesses.find(
+          (business) =>
+            business.name
+              .trim()
+              .toLowerCase() ===
+            titleName
+              .trim()
+              .toLowerCase()
+        );
+
+      if (matching) {
+        addAlias(
+          company,
+          oldId,
+          matching.id
+        );
+
+        task.businessId =
+          matching.id;
+
+        if (
+          task.pipeline &&
+          typeof task.pipeline ===
+            "object"
+        ) {
+          task.pipeline.businessId =
+            matching.id;
+        }
+
+        continue;
+      }
+    }
+  }
+
+  for (
+    const task of tasks
+  ) {
+    if (
+      task.businessId
+    ) {
+      task.businessId =
+        applyBusinessAlias(
+          company,
+          task.businessId
+        );
+    }
+
+    if (
+      task.pipeline &&
+      typeof task.pipeline ===
+        "object" &&
+      task.pipeline.businessId
+    ) {
+      task.pipeline.businessId =
+        applyBusinessAlias(
+          company,
+          task.pipeline
+            .businessId
+        );
+    }
+  }
+
+  const referencedIds =
+    new Set(
+      uniqueTaskBusinessIds(
+        tasks
+      )
+    );
+
+  for (
+    const business of
+      company.businesses
+  ) {
+    if (
+      !referencedIds.has(
+        business.id
+      ) &&
+      business.id !==
+        canonical.id
+    ) {
+      company.migration.repairs.push(
+        {
+          type:
+            "unreferenced_business_preserved",
+
+          businessId:
+            business.id,
+
+          at:
+            nowIso(),
+        }
+      );
+    }
+  }
+
+  company.businesses = [
+    ...new Map(
+      company.businesses.map(
+        (business) => [
+          applyBusinessAlias(
+            company,
+            business.id
+          ),
+          business.id ===
+          canonical.id
+            ? business
+            : canonicalizeBusinessAliasObject(
+                business,
+                company
+              ),
+        ]
+      )
+    ).values(),
+  ];
+
+  return canonical.id;
+}
+
+function reconcileDuplicatePipelineTasks(
+  tasks
+) {
+  const groups =
+    new Map();
+
+  const pipelineActions =
+    new Set([
+      "research_brief",
+      "product_prototype",
+      "sales_package_generation",
+      "sales_evaluation",
+      "human_gate_publication",
+    ]);
+
+  for (
+    const task of tasks
+  ) {
+    const businessId =
+      safeString(
+        task.businessId,
+        ""
+      );
+
+    if (
+      !businessId ||
+      !pipelineActions.has(
+        task.action
+      )
+    ) {
+      continue;
+    }
+
+    const key =
+      `${businessId}::${task.action}`;
+
+    if (
+      !groups.has(key)
+    ) {
+      groups.set(
+        key,
+        []
+      );
+    }
+
+    groups
+      .get(key)
+      .push(task);
+  }
+
+  let supersededCount = 0;
+
+  for (
+    const group of groups.values()
+  ) {
+    const hasHumanWaiting =
+      group.some(
+        (task) =>
+          task.status ===
+          "waiting_human"
+      );
+
+    const hasCompleted =
+      group.some(
+        (task) =>
+          task.status ===
+          "completed"
+      );
+
+    if (
+      !hasHumanWaiting &&
+      !hasCompleted
+    ) {
+      continue;
+    }
+
+    for (
+      const task of group
+    ) {
+      if (
+        task.status !==
+          "pending" &&
+        task.status !==
+          "running"
+      ) {
+        continue;
+      }
+
+      task.status =
+        "superseded";
+
+      task.supersededAt =
+        nowIso();
+
+      task.result = {
+        ...(task.result ?? {}),
+
+        supersededReason:
+          hasHumanWaiting
+            ? "同一事業・同一工程のHuman Gateが既に存在するため統合した。"
+            : "既存の完了済み同一工程があるため統合した。",
+      };
+
+      supersededCount += 1;
+    }
+  }
+
+  return supersededCount;
+}
+
+function rebuildHumanGates(
+  company,
+  tasks
+) {
+  const current =
+    Array.isArray(
+      company.humanGates
+    )
+      ? company.humanGates
+      : [];
+
+  const byTask =
+    new Map(
+      current.map(
+        (gate) => [
+          gate.taskId,
+          gate,
+        ]
+      )
+    );
+
+  const next =
+    [];
+
+  for (
+    const task of tasks
+  ) {
+    const isHumanGate =
+      task.type ===
+        "human_gate" ||
+      task.requiresHuman ===
+        true ||
+      task.humanGateId !=
+        null;
+
+    if (!isHumanGate) {
+      continue;
+    }
+
+    const existing =
+      byTask.get(
+        task.id
+      );
+
+    next.push({
+      id:
+        existing?.id ??
+        task.humanGateId ??
+        randomId("gate"),
+
+      taskId:
+        task.id,
+
+      businessId:
+        task.businessId ??
+        task.pipeline
+          ?.businessId ??
+        null,
+
+      status:
+        task.status ===
+        "waiting_human"
+          ? "pending"
+          : task.status ===
+              "approved"
+            ? "approved"
+            : task.status ===
+                "rejected"
+              ? "rejected"
+              : existing?.status ??
+                "pending",
+
+      requiresHuman:
+        true,
+
+      createdAt:
+        existing?.createdAt ??
+        task.createdAt ??
+        nowIso(),
+
+      updatedAt:
+        nowIso(),
+    });
+  }
+
+  company.humanGates =
+    next;
+
+  return next;
+}
+
+function actionMatches(
+  action,
+  aliases
+) {
+  const normalized =
+    safeString(
+      action,
+      ""
+    )
+      .toLowerCase()
+      .replace(
+        /[-_\s]/g,
+        ""
+      );
+
+  return aliases.some(
+    (alias) =>
+      normalized ===
+      alias
+        .toLowerCase()
+        .replace(
+          /[-_\s]/g,
+          ""
+        )
+  );
+}
+
+function hasCompletedAction(
+  tasks,
+  aliases
+) {
+  return tasks.some(
+    (task) =>
+      normalizeTaskStatus(
+        task.status
+      ) ===
+        "completed" &&
+      actionMatches(
+        task.action,
+        aliases
+      )
+  );
+}
+
+function capabilitySnapshot(
+  company,
+  tasks
+) {
+  const externalResearch =
+    (company
+      .researchEvidenceIndex
+      ?.length ??
+      0) > 0 ||
+    hasCompletedAction(
+      tasks,
+      [
+        "research_external_evidence",
+        "external_research",
+        "researchgateway",
+      ]
+    );
+
+  const productGeneration =
+    hasCompletedAction(
+      tasks,
+      [
+        "product_prototype",
+        "productprototype",
+      ]
+    );
+
+  const salesPreparation =
+    hasCompletedAction(
+      tasks,
+      [
+        "sales_package_generation",
+        "salespackagegeneration",
+      ]
+    );
+
+  const customerFeedback =
+    (company.customers?.length ??
+      0) > 0;
+
+  const outcomeTracking =
+    (company.outcomes?.length ??
+      0) > 0;
+
+  const revenueTracking =
+    (company.outcomes ?? []).some(
+      (outcome) =>
+        Number(
+          outcome.revenue ?? 0
+        ) > 0
+    );
+
+  const publication =
+    hasCompletedAction(
+      tasks,
+      [
+        "publish",
+        "publication",
+        "external_publication",
+      ]
+    );
+
+  const payment =
+    hasCompletedAction(
+      tasks,
+      [
+        "payment",
+        "payment_connected",
+        "external_payment",
+      ]
+    );
+
+  const selfDevelopment =
+    hasCompletedAction(
+      tasks,
+      [
+        "development_infrastructure",
+        "self_development",
+        "code_change_candidate",
+        "self_maintenance_repair",
+      ]
+    );
+
+  const platformIndependence =
+    hasCompletedAction(
+      tasks,
+      [
+        "platform_decoupling",
+        "platform_independence",
+      ]
+    );
+
   return {
-    cycleCount: 0,
-    currentFocus: "会社初期化完了",
-    nextAction: "組織・能力・事業状態を確認する",
-    mode: "autonomous",
-    goal: "人間の管理負担を下げながら、自律的に事業を発見・実行・改善する",
-    runtimeVersion: RUNTIME_VERSION,
-    externalActions: false,
-    externalAI: false,
-    humanGates: [],
-    businesses: [],
-    companyMemory: [],
-    researchEvidenceIndex: [],
-    customers: [],
-    outcomes: [],
-    departments: normalizeDepartments([]),
-    capabilitySnapshot: {},
-    organizationHistory: [],
+    externalResearch,
+    productGeneration,
+    salesPreparation,
+    customerFeedback,
+    outcomeTracking,
+    revenueTracking,
+    publication,
+    payment,
+    selfDevelopment,
+    platformIndependence,
   };
 }
 
-async function ensureInitialized(env) {
-  let company = await getStore(
-    env,
-    "company",
-    null
-  );
-
-  let tasks = await getStore(
-    env,
-    "tasks",
-    []
-  );
-
-  if (!company) {
-    company = defaultCompany();
+function definitionNextAction(
+  department
+) {
+  if (
+    department ===
+    "開発基盤"
+  ) {
+    return "Sandbox / Test / Deploy の分離を実装する。";
   }
 
-  company.departments = normalizeDepartments(
-    company.departments
-  );
+  if (
+    department ===
+    "プラットフォーム戦略"
+  ) {
+    return "Storage / Scheduler / Executor / Web の Adapter 境界を実装する。";
+  }
 
-  company.humanGates = Array.isArray(company.humanGates)
-    ? company.humanGates
-    : [];
+  if (
+    department ===
+    "調査"
+  ) {
+    return "外部証拠取得結果を事業仮説へ反映する。";
+  }
 
-  company.businesses = Array.isArray(company.businesses)
-    ? company.businesses
-    : [];
+  if (
+    department ===
+    "顧客対応"
+  ) {
+    return "顧客フィードバックを改善タスクへ変換する。";
+  }
 
-  company.companyMemory = Array.isArray(company.companyMemory)
-    ? company.companyMemory
-    : [];
+  if (
+    department ===
+    "事業成果"
+  ) {
+    return "成果・売上・コストをCEO評価へ接続する。";
+  }
 
-  company.researchEvidenceIndex = Array.isArray(
-    company.researchEvidenceIndex
-  )
-    ? company.researchEvidenceIndex
-    : [];
+  if (
+    department ===
+    "技術"
+  ) {
+    return "実行系の安定性と再利用可能な構造を改善する。";
+  }
 
-  company.customers = Array.isArray(company.customers)
-    ? company.customers
-    : [];
+  if (
+    department ===
+    "リスク管理"
+  ) {
+    return "外部作用と不可逆操作のリスク境界を確認する。";
+  }
 
-  company.outcomes = Array.isArray(company.outcomes)
-    ? company.outcomes
-    : [];
+  if (
+    department ===
+    "企画"
+  ) {
+    return "新しい事業仮説と優先順位を整理する。";
+  }
 
-  company.organizationHistory = Array.isArray(
-    company.organizationHistory
-  )
-    ? company.organizationHistory
-    : [];
+  return "部門成果をCEOの次戦略へ渡す。";
+}
 
-  tasks = Array.isArray(tasks) ? tasks : [];
+async function addMemory(
+  env,
+  entry
+) {
+  const company =
+    await getStore(
+      env,
+      "company",
+      defaultCompany()
+    );
 
-  await setStore(env, "company", company);
-  await setStore(env, "tasks", tasks);
+  company.companyMemory =
+    Array.isArray(
+      company.companyMemory
+    )
+      ? company.companyMemory
+      : [];
 
-  await updateRuntimeMeta(env, {
-    cycleCount: Number(company.cycleCount ?? 0),
+  company.companyMemory.push({
+    id:
+      randomId("memory"),
+
+    ...entry,
+
+    createdAt:
+      nowIso(),
   });
 
-  return {
-    company,
-    tasks,
-  };
-}
+  company.companyMemory =
+    company.companyMemory.slice(
+      -500
+    );
 
-function getPendingTasks(tasks) {
-  return tasks.filter(
-    (task) =>
-      task.status === "pending" ||
-      task.status === "running"
+  await setStore(
+    env,
+    "company",
+    company
   );
 }
 
-function getPendingInternalTasks(tasks) {
-  return tasks.filter(
-    (task) =>
-      task.internalOnly === true &&
-      (task.status === "pending" || task.status === "running")
+async function saveTasks(
+  env,
+  tasks
+) {
+  await setStore(
+    env,
+    "tasks",
+    tasks
   );
 }
 
-function getHumanGateTasks(tasks) {
-  return tasks.filter(
-    (task) =>
-      task.type === "human_gate" &&
-      task.status === "waiting_human"
-  );
-}
+async function createTask(
+  env,
+  definition
+) {
+  let tasks =
+    await getStore(
+      env,
+      "tasks",
+      []
+    );
 
-function taskPriority(task) {
-  if (task.type === "business_task") {
-    return 100;
+  tasks =
+    Array.isArray(tasks)
+      ? tasks.map(
+          normalizeTask
+        )
+      : [];
+
+  const sameAction =
+    safeString(
+      definition.action,
+      ""
+    );
+
+  const sameBusiness =
+    safeString(
+      definition.businessId,
+      ""
+    ) || null;
+
+  const duplicate =
+    tasks.find(
+      (task) =>
+        task.action ===
+          sameAction &&
+        task.businessId ===
+          sameBusiness &&
+        (
+          task.status ===
+            "pending" ||
+          task.status ===
+            "running" ||
+          task.status ===
+            "waiting_human"
+        )
+    );
+
+  if (
+    duplicate
+  ) {
+    return duplicate;
   }
 
-  if (task.type === "external_research") {
-    return 90;
-  }
+  const task =
+    normalizeTask({
+      id:
+        randomId("task"),
 
-  if (task.type === "internal_task") {
-    return 50;
-  }
+      type:
+        definition.type ??
+        "internal_task",
 
-  return 10;
-}
+      action:
+        definition.action ??
+        "internal_analysis",
 
-function sortTasksForExecution(tasks) {
-  return [...tasks].sort(
-    (a, b) =>
-      taskPriority(b) - taskPriority(a) ||
-      String(a.createdAt).localeCompare(
-        String(b.createdAt)
-      )
-  );
-}
+      title:
+        definition.title ??
+        "内部タスク",
 
-async function saveTasks(env, tasks) {
-  await setStore(env, "tasks", tasks);
-}
+      description:
+        definition.description ??
+        "",
 
-async function findTaskById(env, taskId) {
-  const tasks = await getStore(env, "tasks", []);
+      department:
+        definition.department ??
+        "企画",
 
-  return tasks.find(
-    (task) => task.id === taskId
-  ) || null;
-}
+      priority:
+        definition.priority ??
+        50,
 
-async function updateTask(env, taskId, patch) {
-  const tasks = await getStore(env, "tasks", []);
+      status:
+        definition.status ??
+        "pending",
 
-  const index = tasks.findIndex(
-    (task) => task.id === taskId
-  );
+      internalOnly:
+        definition.internalOnly ??
+        false,
 
-  if (index === -1) {
-    return null;
-  }
+      safeAutonomy:
+        definition.safeAutonomy ??
+        false,
 
-  tasks[index] = {
-    ...tasks[index],
-    ...patch,
-    updatedAt: nowIso(),
-  };
+      externalAction:
+        definition.externalAction ??
+        false,
 
-  await saveTasks(env, tasks);
+      requiresHuman:
+        definition.requiresHuman ??
+        false,
 
-  return tasks[index];
-}
+      businessId:
+        sameBusiness,
 
-async function createTask(env, definition) {
-  const tasks = await getStore(env, "tasks", []);
+      input:
+        definition.input ??
+        {},
 
-  const existing = tasks.find(
-    (task) =>
-      task.title === definition.title &&
-      (
-        task.status === "pending" ||
-        task.status === "running" ||
-        task.status === "waiting_human"
-      )
-  );
+      pipeline:
+        definition.pipeline ??
+        {},
 
-  if (existing) {
-    return existing;
-  }
+      createdAt:
+        nowIso(),
 
-  const task = {
-    id: randomId("task"),
-    type: definition.type ?? "internal_task",
-    action: definition.action ?? "internal_analysis",
-    title: definition.title ?? "内部タスク",
-    description: definition.description ?? "",
-    department: definition.department ?? "企画",
-    priority: definition.priority ?? 50,
-    status: definition.status ?? "pending",
-    internalOnly: definition.internalOnly ?? false,
-    safeAutonomy: definition.safeAutonomy ?? false,
-    externalAction: definition.externalAction ?? false,
-    businessId: definition.businessId ?? null,
-    input: definition.input ?? {},
-    result: null,
-    artifactId: null,
-    createdAt: nowIso(),
-    updatedAt: nowIso(),
-  };
+      updatedAt:
+        nowIso(),
+    });
 
   tasks.push(task);
 
-  await saveTasks(env, tasks);
+  await saveTasks(
+    env,
+    tasks
+  );
 
   return task;
 }
 
-async function saveArtifact(env, task, payload) {
+async function updateTask(
+  env,
+  taskId,
+  patch
+) {
+  let tasks =
+    await getStore(
+      env,
+      "tasks",
+      []
+    );
+
+  tasks =
+    Array.isArray(tasks)
+      ? tasks.map(
+          normalizeTask
+        )
+      : [];
+
+  const index =
+    tasks.findIndex(
+      (task) =>
+        task.id ===
+        taskId
+    );
+
+  if (
+    index < 0
+  ) {
+    return null;
+  }
+
+  tasks[index] =
+    normalizeTask({
+      ...tasks[index],
+
+      ...patch,
+
+      updatedAt:
+        nowIso(),
+    });
+
+  await saveTasks(
+    env,
+    tasks
+  );
+
+  return tasks[index];
+}
+
+async function findTaskById(
+  env,
+  taskId
+) {
+  const tasks =
+    await getStore(
+      env,
+      "tasks",
+      []
+    );
+
+  return tasks
+    .map(
+      normalizeTask
+    )
+    .find(
+      (task) =>
+        task.id ===
+        taskId
+    ) ?? null;
+}
+
+async function saveArtifact(
+  env,
+  task,
+  payload
+) {
   const artifact = {
-    id: randomId("artifact"),
-    taskId: task.id,
-    businessId: task.businessId ?? null,
-    department: task.department ?? null,
-    action: task.action,
-    createdAt: nowIso(),
+    id:
+      randomId("artifact"),
+
+    taskId:
+      task.id,
+
+    businessId:
+      task.businessId ??
+      null,
+
+    department:
+      task.department ??
+      null,
+
+    action:
+      task.action,
+
+    createdAt:
+      nowIso(),
+
     payload,
   };
 
@@ -454,406 +1699,175 @@ async function saveArtifact(env, task, payload) {
     artifact
   );
 
-  const index = await getStore(
-    env,
-    "artifact_index",
-    []
-  );
+  const index =
+    await getStore(
+      env,
+      "artifact_index",
+      []
+    );
 
-  index.push({
-    id: artifact.id,
-    taskId: artifact.taskId,
-    businessId: artifact.businessId,
-    department: artifact.department,
-    action: artifact.action,
-    createdAt: artifact.createdAt,
+  const next =
+    Array.isArray(index)
+      ? index
+      : [];
+
+  next.push({
+    id:
+      artifact.id,
+
+    taskId:
+      artifact.taskId,
+
+    businessId:
+      artifact.businessId,
+
+    department:
+      artifact.department,
+
+    action:
+      artifact.action,
+
+    createdAt:
+      artifact.createdAt,
   });
 
   await setStore(
     env,
     "artifact_index",
-    index.slice(-500)
+    next.slice(-1000)
   );
 
   return artifact;
 }
 
-async function saveMemory(env, memory) {
-  const company = await getStore(
-    env,
-    "company",
-    defaultCompany()
+function getPendingInternalTasks(
+  tasks
+) {
+  return tasks.filter(
+    (task) =>
+      task.internalOnly ===
+        true &&
+      (
+        task.status ===
+          "pending" ||
+        task.status ===
+          "running"
+      )
   );
+}
 
-  company.companyMemory = Array.isArray(
-    company.companyMemory
-  )
-    ? company.companyMemory
-    : [];
+function getPendingHumanGates(
+  tasks
+) {
+  return tasks.filter(
+    (task) =>
+      (
+        task.type ===
+          "human_gate" ||
+        task.requiresHuman ===
+          true
+      ) &&
+      task.status ===
+        "waiting_human"
+  );
+}
 
-  company.companyMemory.push({
-    id: randomId("memory"),
-    ...memory,
-    createdAt: nowIso(),
-  });
+function taskPriority(
+  task
+) {
+  if (
+    task.action?.startsWith(
+      "self_maintenance"
+    )
+  ) {
+    return 120;
+  }
+
+  if (
+    task.type ===
+      "internal_task" &&
+    task.internalOnly
+  ) {
+    return 110;
+  }
+
+  if (
+    task.type ===
+    "business_task"
+  ) {
+    return 90;
+  }
+
+  return Number(
+    task.priority ??
+      50
+  );
+}
+
+function sortTasksForExecution(
+  tasks
+) {
+  return [
+    ...tasks,
+  ].sort(
+    (a, b) =>
+      taskPriority(b) -
+        taskPriority(a) ||
+      String(
+        a.createdAt
+      ).localeCompare(
+        String(
+          b.createdAt
+        )
+      )
+  );
+}
+
+async function mergeAndMigrateState(
+  env
+) {
+  const rawCompany =
+    await getStore(
+      env,
+      "company",
+      null
+    );
+
+  const rawTasks =
+    await getStore(
+      env,
+      "tasks",
+      []
+    );
+
+  let company =
+    rawCompany
+      ? {
+          ...defaultCompany(),
+          ...rawCompany,
+        }
+      : defaultCompany();
+
+  let tasks =
+    Array.isArray(
+      rawTasks
+    )
+      ? rawTasks.map(
+          normalizeTask
+        )
+      : [];
+
+  company.departments =
+    normalizeDepartments(
+      company.departments
+    );
 
   company.companyMemory =
-    company.companyMemory.slice(-500);
-
-  await setStore(env, "company", company);
-
-  return company.companyMemory.at(-1);
-}
-
-function definitionNextAction(department) {
-  if (department === "開発基盤") {
-    return "Sandbox / Test / Deploy の分離を実装する。";
-  }
-
-  if (department === "プラットフォーム戦略") {
-    return "Storage / Scheduler / Executor / Web の Adapter 境界を実装する。";
-  }
-
-  if (department === "調査") {
-    return "外部証拠取得結果を事業仮説へ反映する。";
-  }
-
-  if (department === "顧客対応") {
-    return "顧客フィードバックを改善タスクへ変換する。";
-  }
-
-  if (department === "事業成果") {
-    return "成果・売上・コストをCEO評価へ接続する。";
-  }
-
-  if (department === "技術") {
-    return "実行系の安定性と再利用可能な構造を改善する。";
-  }
-
-  if (department === "リスク管理") {
-    return "外部作用と不可逆操作のリスク境界を確認する。";
-  }
-
-  if (department === "企画") {
-    return "新しい事業仮説と優先順位を整理する。";
-  }
-
-  return "部門成果をCEOの次戦略へ渡す。";
-}
-
-function buildDepartmentCapability(
-  department,
-  company
-) {
-  const generated = GENERATED_DEPARTMENTS[department];
-
-  return {
-    department,
-    mission:
-      generated?.mission ??
-      `${department}に関する会社能力を維持・改善する。`,
-    currentCapability:
-      generated?.trigger
-        ? company.capabilitySnapshot?.[
-            generated.trigger
-          ] ?? false
-        : true,
-    nextAction:
-      definitionNextAction(department),
-    autonomy:
-      {
-        internalTaskCreation: true,
-        internalArtifactCreation: true,
-        externalIrreversibleAction: false,
-      },
-  };
-}
-
-function capabilitySnapshot(company, tasks) {
-  const completedTasks = tasks.filter(
-    (task) => task.status === "completed"
-  );
-
-  const hasAction = (action) =>
-    completedTasks.some(
-      (task) => task.action === action
-    );
-
-  const revenueObserved = company.outcomes.some(
-    (outcome) =>
-      Number(outcome.revenue ?? 0) > 0
-  );
-
-  return {
-    externalResearch:
-      company.researchEvidenceIndex.length > 0,
-
-    productGeneration:
-      hasAction("product_prototype"),
-
-    salesPreparation:
-      hasAction("sales_package_generation"),
-
-    customerFeedback:
-      company.customers.length > 0,
-
-    outcomeTracking:
-      company.outcomes.length > 0,
-
-    revenueTracking:
-      revenueObserved,
-
-    publication:
-      false,
-
-    payment:
-      false,
-
-    selfDevelopment:
-      hasAction("development_infrastructure"),
-
-    platformIndependence:
-      hasAction("platform_decoupling"),
-  };
-}
-
-async function reconcileOrganization(env) {
-  const company = await getStore(
-    env,
-    "company",
-    defaultCompany()
-  );
-
-  const tasks = await getStore(
-    env,
-    "tasks",
-    []
-  );
-
-  company.departments = normalizeDepartments(
-    company.departments
-  );
-
-  company.capabilitySnapshot =
-    capabilitySnapshot(company, tasks);
-
-  const added = [];
-  const removed = [];
-
-  for (const [department, definition] of Object.entries(
-    GENERATED_DEPARTMENTS
-  )) {
-    const capability =
-      company.capabilitySnapshot[
-        definition.trigger
-      ];
-
-    if (!capability) {
-      if (!company.departments.includes(department)) {
-        company.departments.push(department);
-        added.push(department);
-      }
-    }
-  }
-
-  company.departments = normalizeDepartments(
-    company.departments
-  );
-
-  if (added.length > 0) {
-    company.organizationHistory.push({
-      type: "department_created",
-      departments: added,
-      reason: "capability_gap",
-      createdAt: nowIso(),
-    });
-  }
-
-  company.organizationHistory =
-    company.organizationHistory.slice(-200);
-
-  await setStore(env, "company", company);
-
-  return {
-    company,
-    added,
-    removed,
-  };
-}
-
-async function createCapabilityArtifact(
-  env,
-  department
-) {
-  const company = await getStore(
-    env,
-    "company",
-    defaultCompany()
-  );
-
-  const capability =
-    buildDepartmentCapability(
-      department,
-      company
-    );
-
-  const task = {
-    id: randomId("capability"),
-    action: "capability_analysis",
-    department,
-    businessId: null,
-  };
-
-  const artifact = await saveArtifact(
-    env,
-    task,
-    capability
-  );
-
-  return artifact;
-}
-
-async function ensureDepartmentTasks(env) {
-  let company = await getStore(
-    env,
-    "company",
-    defaultCompany()
-  );
-
-  let tasks = await getStore(
-    env,
-    "tasks",
-    []
-  );
-
-  company.departments = normalizeDepartments(
-    company.departments
-  );
-
-  const pendingInternal =
-    getPendingInternalTasks(tasks);
-
-  if (pendingInternal.length >= 3) {
-    return {
-      created: [],
-    };
-  }
-
-  const created = [];
-
-  for (const department of company.departments) {
-    if (created.length >= 1) {
-      break;
-    }
-
-    const hasPendingForDepartment =
-      tasks.some(
-        (task) =>
-          task.internalOnly === true &&
-          task.department === department &&
-          (
-            task.status === "pending" ||
-            task.status === "running"
-          )
-      );
-
-    if (hasPendingForDepartment) {
-      continue;
-    }
-
-    const generated =
-      GENERATED_DEPARTMENTS[department];
-
-    const shouldCreate =
-      generated ||
-      department === "企画" ||
-      department === "技術" ||
-      department === "リスク管理";
-
-    if (!shouldCreate) {
-      continue;
-    }
-
-    const task = await createTask(env, {
-      type: "internal_task",
-      action:
-        generated?.action ??
-        "internal_department_improvement",
-      title:
-        `${department}：${definitionNextAction(department)}`,
-      description:
-        generated?.mission ??
-        `${department}の内部能力を点検・改善する。`,
-      department,
-      priority:
-        department === "リスク管理"
-          ? 80
-          : 50,
-      internalOnly: true,
-      safeAutonomy: true,
-      externalAction: false,
-    });
-
-    created.push(task);
-  }
-
-  return {
-    created,
-  };
-}
-
-async function researchSource(env, sourceId) {
-  const source =
-    RESEARCH_SOURCES[sourceId];
-
-  if (!source) {
-    throw new Error(
-      `Unknown research source: ${sourceId}`
-    );
-  }
-
-  const response = await fetch(
-    source.url,
-    {
-      method: "GET",
-      headers: {
-        "user-agent":
-          "AI-Company-Core/6.1.1 research gateway",
-        accept:
-          "text/html,application/xhtml+xml,application/json",
-      },
-    }
-  );
-
-  const rawText = await response.text();
-
-  const text =
-    rawText.length > 20000
-      ? rawText.slice(0, 20000)
-      : rawText;
-
-  const evidence = {
-    id: randomId("evidence"),
-    sourceId,
-    sourceName: source.name,
-    url: source.url,
-    status: response.status,
-    ok: response.ok,
-    retrievedAt: nowIso(),
-    contentPreview: text,
-  };
-
-  await setStore(
-    env,
-    `evidence:${evidence.id}`,
-    evidence
-  );
-
-  const company = await getStore(
-    env,
-    "company",
-    defaultCompany()
-  );
+    Array.isArray(
+      company.companyMemory
+    )
+      ? company.companyMemory
+      : [];
 
   company.researchEvidenceIndex =
     Array.isArray(
@@ -862,59 +1876,579 @@ async function researchSource(env, sourceId) {
       ? company.researchEvidenceIndex
       : [];
 
-  company.researchEvidenceIndex.push({
-    id: evidence.id,
-    sourceId: evidence.sourceId,
-    sourceName: evidence.sourceName,
-    url: evidence.url,
-    status: evidence.status,
-    ok: evidence.ok,
-    retrievedAt: evidence.retrievedAt,
-  });
+  company.customers =
+    Array.isArray(
+      company.customers
+    )
+      ? company.customers
+      : [];
 
-  company.researchEvidenceIndex =
-    company.researchEvidenceIndex.slice(-500);
+  company.outcomes =
+    Array.isArray(
+      company.outcomes
+    )
+      ? company.outcomes
+      : [];
 
-  await setStore(env, "company", company);
+  company.organizationHistory =
+    Array.isArray(
+      company.organizationHistory
+    )
+      ? company.organizationHistory
+      : [];
 
-  await saveMemory(env, {
-    type: "external_research",
-    summary:
-      `${source.name}から外部証拠を取得した。`,
-    evidenceId: evidence.id,
-  });
+  company.humanGates =
+    Array.isArray(
+      company.humanGates
+    )
+      ? company.humanGates
+      : [];
 
-  return evidence;
-}
+  company.migration = {
+    lastRunAt:
+      company.migration
+        ?.lastRunAt ??
+      null,
 
-async function businessDiscovery(env) {
-  const company = await getStore(
-    env,
-    "company",
-    defaultCompany()
-  );
+    version:
+      company.migration
+        ?.version ??
+      null,
 
-  if (company.businesses.length > 0) {
-    return company.businesses[0];
-  }
+    businessAliases:
+      company.migration
+        ?.businessAliases ??
+      {},
 
-  const business = {
-    id: randomId("business"),
-    name:
-      "小規模事業向け調査レポート生成サービス",
-    problem:
-      "小規模事業者が必要な市場・競合・制度情報の調査に時間を取られる。",
-    target:
-      "小規模事業者・個人事業主",
-    value:
-      "調査設計からレポート生成までを短時間で支援する。",
-    status: "hypothesis",
-    createdAt: nowIso(),
+    repairs:
+      Array.isArray(
+        company.migration
+          ?.repairs
+      )
+        ? company.migration
+            .repairs
+        : [],
   };
 
-  company.businesses.push(business);
+  company.maintenance = {
+    lastAuditAt:
+      company.maintenance
+        ?.lastAuditAt ??
+      null,
 
-  await setStore(env, "company", company);
+    lastRepairAt:
+      company.maintenance
+        ?.lastRepairAt ??
+      null,
+
+    lastAnomalies:
+      Array.isArray(
+        company.maintenance
+          ?.lastAnomalies
+      )
+        ? company.maintenance
+            .lastAnomalies
+        : [],
+  };
+
+  const beforeAliases =
+    {
+      ...company.migration
+        .businessAliases,
+    };
+
+  const beforeTaskBusinessIds =
+    tasks.map(
+      (task) =>
+        task.businessId
+    );
+
+  const canonicalBusinessId =
+    mergeBusinessIdentity(
+      company,
+      tasks
+    );
+
+  const supersededCount =
+    reconcileDuplicatePipelineTasks(
+      tasks
+    );
+
+  rebuildHumanGates(
+    company,
+    tasks
+  );
+
+  for (
+    const task of tasks
+  ) {
+    task.status =
+      normalizeTaskStatus(
+        task.status
+      );
+
+    if (
+      task.pipeline
+        ?.businessId
+    ) {
+      task.pipeline.businessId =
+        applyBusinessAlias(
+          company,
+          task.pipeline
+            .businessId
+        );
+    }
+  }
+
+  company.capabilitySnapshot =
+    capabilitySnapshot(
+      company,
+      tasks
+    );
+
+  company.schemaVersion =
+    SCHEMA_VERSION;
+
+  company.runtimeVersion =
+    RUNTIME_VERSION;
+
+  company.externalActions =
+    false;
+
+  company.externalAI =
+    false;
+
+  const migrationChanged =
+    JSON.stringify(
+      beforeAliases
+    ) !==
+      JSON.stringify(
+        company.migration
+          .businessAliases
+      ) ||
+    JSON.stringify(
+      beforeTaskBusinessIds
+    ) !==
+      JSON.stringify(
+        tasks.map(
+          (task) =>
+            task.businessId
+        )
+      ) ||
+    company.migration
+      .version !==
+      SCHEMA_VERSION;
+
+  if (
+    migrationChanged ||
+    supersededCount > 0
+  ) {
+    company.migration.repairs.push(
+      {
+        type:
+          "migration_run",
+
+        fromVersion:
+          company.migration
+            .version,
+
+        toVersion:
+          SCHEMA_VERSION,
+
+        canonicalBusinessId,
+
+        taskCount:
+          tasks.length,
+
+        supersededCount,
+
+        at:
+          nowIso(),
+      }
+    );
+  }
+
+  company.migration.repairs =
+    company.migration.repairs.slice(
+      -200
+    );
+
+  company.migration.version =
+    SCHEMA_VERSION;
+
+  company.migration.lastRunAt =
+    nowIso();
+
+  await setStore(
+    env,
+    "tasks",
+    tasks
+  );
+
+  await setStore(
+    env,
+    "company",
+    company
+  );
+
+  await updateRuntimeMeta(
+    env,
+    {
+      cycleCount:
+        Number(
+          company.cycleCount ??
+          0
+        ),
+    }
+  );
+
+  return {
+    company,
+    tasks,
+    changed:
+      migrationChanged ||
+      supersededCount > 0,
+    supersededCount,
+  };
+}
+
+async function ensureInitialized(
+  env
+) {
+  return mergeAndMigrateState(
+    env
+  );
+}
+
+async function reconcileOrganization(
+  env
+) {
+  const company =
+    await getStore(
+      env,
+      "company",
+      defaultCompany()
+    );
+
+  const tasks =
+    (
+      await getStore(
+        env,
+        "tasks",
+        []
+      )
+    ).map(
+      normalizeTask
+    );
+
+  const before =
+    normalizeDepartments(
+      company.departments
+    );
+
+  company.departments =
+    before;
+
+  company.capabilitySnapshot =
+    capabilitySnapshot(
+      company,
+      tasks
+    );
+
+  const added =
+    [];
+
+  for (
+    const [
+      department,
+      definition,
+    ] of Object.entries(
+      GENERATED_DEPARTMENTS
+    )
+  ) {
+    if (
+      !company
+        .capabilitySnapshot[
+          definition.trigger
+        ] &&
+      !company.departments.includes(
+        department
+      )
+    ) {
+      company.departments.push(
+        department
+      );
+
+      added.push(
+        department
+      );
+    }
+  }
+
+  company.departments =
+    normalizeDepartments(
+      company.departments
+    );
+
+  if (
+    added.length > 0
+  ) {
+    company.organizationHistory.push(
+      {
+        type:
+          "department_created",
+
+        departments:
+          added,
+
+        reason:
+          "capability_gap",
+
+        createdAt:
+          nowIso(),
+      }
+    );
+  }
+
+  company.organizationHistory =
+    company.organizationHistory.slice(
+      -200
+    );
+
+  await setStore(
+    env,
+    "company",
+    company
+  );
+
+  return {
+    company,
+    tasks,
+    before,
+    after:
+      company.departments,
+    added,
+  };
+}
+
+async function ensureDepartmentTasks(
+  env
+) {
+  const company =
+    await getStore(
+      env,
+      "company",
+      defaultCompany()
+    );
+
+  let tasks =
+    (
+      await getStore(
+        env,
+        "tasks",
+        []
+      )
+    ).map(
+      normalizeTask
+    );
+
+  const created =
+    [];
+
+  const pendingInternal =
+    getPendingInternalTasks(
+      tasks
+    );
+
+  if (
+    pendingInternal.length >=
+    3
+  ) {
+    return {
+      created,
+    };
+  }
+
+  const preferredDepartments =
+    [
+      "開発基盤",
+      "プラットフォーム戦略",
+      "調査",
+      "顧客対応",
+      "事業成果",
+      "リスク管理",
+      "技術",
+      "企画",
+    ];
+
+  for (
+    const department of
+      preferredDepartments
+  ) {
+    if (
+      created.length >=
+      1
+    ) {
+      break;
+    }
+
+    if (
+      !company.departments.includes(
+        department
+      )
+    ) {
+      continue;
+    }
+
+    const generated =
+      GENERATED_DEPARTMENTS[
+        department
+      ];
+
+    const hasPending =
+      tasks.some(
+        (task) =>
+          task.internalOnly ===
+            true &&
+          task.department ===
+            department &&
+          (
+            task.status ===
+              "pending" ||
+            task.status ===
+              "running"
+          )
+      );
+
+    if (
+      hasPending
+    ) {
+      continue;
+    }
+
+    const action =
+      generated?.action ??
+      "internal_department_improvement";
+
+    const task =
+      await createTask(
+        env,
+        {
+          type:
+            "internal_task",
+
+          action,
+
+          title:
+            `${department}：${definitionNextAction(
+              department
+            )}`,
+
+          description:
+            generated?.mission ??
+            `${department}の内部能力を点検・改善する。`,
+
+          department,
+
+          priority:
+            department ===
+            "リスク管理"
+              ? 80
+              : 50,
+
+          internalOnly:
+            true,
+
+          safeAutonomy:
+            true,
+
+          externalAction:
+            false,
+        }
+      );
+
+    created.push(
+      task
+    );
+
+    tasks.push(
+      task
+    );
+  }
+
+  return {
+    created,
+  };
+}
+
+async function createBusinessIfNeeded(
+  env
+) {
+  const company =
+    await getStore(
+      env,
+      "company",
+      defaultCompany()
+    );
+
+  company.businesses =
+    Array.isArray(
+      company.businesses
+    )
+      ? company.businesses.map(
+          normalizeBusiness
+        )
+      : [];
+
+  if (
+    company.businesses.length >
+    0
+  ) {
+    await setStore(
+      env,
+      "company",
+      company
+    );
+
+    return company
+      .businesses[0];
+  }
+
+  const business =
+    {
+      id:
+        randomId(
+          "business"
+        ),
+
+      name:
+        "小規模事業向け調査レポート生成サービス",
+
+      problem:
+        "小規模事業者が必要な市場・競合・制度情報の調査に時間を取られる。",
+
+      target:
+        "小規模事業者・個人事業主",
+
+      value:
+        "調査設計からレポート生成までを短時間で支援する。",
+
+      status:
+        "hypothesis",
+
+      createdAt:
+        nowIso(),
+    };
+
+  company.businesses.push(
+    business
+  );
+
+  await setStore(
+    env,
+    "company",
+    company
+  );
 
   return business;
 }
@@ -924,42 +2458,78 @@ async function createBusinessPipelineTask(
   business,
   stage
 ) {
-  const definitions = {
-    research: {
-      action: "research_brief",
-      title:
-        `調査設計：${business.name}`,
-      department: "調査",
-    },
+  const definitions =
+    {
+      research: {
+        action:
+          "research_brief",
 
-    product: {
-      action: "product_prototype",
-      title:
-        `商品設計・試作：${business.name}`,
-      department: "技術",
-    },
+        title:
+          `市場調査：${business.name}`,
 
-    sales: {
-      action: "sales_package_generation",
-      title:
-        `販売準備：${business.name}`,
-      department: "企画",
-    },
+        department:
+          "調査",
 
-    sales_evaluation: {
-      action: "sales_evaluation",
-      title:
-        `販売構成評価：${business.name}`,
-      department: "事業成果",
-    },
+        type:
+          "business_task",
+      },
 
-    human_gate: {
-      action: "human_gate_publication",
-      title:
-        `Human Gate：公開承認 ${business.name}`,
-      department: "リスク管理",
-    },
-  };
+      product: {
+        action:
+          "product_prototype",
+
+        title:
+          `商品設計・試作：${business.name}`,
+
+        department:
+          "技術",
+
+        type:
+          "business_task",
+      },
+
+      sales: {
+        action:
+          "sales_package_generation",
+
+        title:
+          `販売準備：${business.name}`,
+
+        department:
+          "企画",
+
+        type:
+          "business_task",
+      },
+
+      sales_evaluation: {
+        action:
+          "sales_evaluation",
+
+        title:
+          `販売構成評価：${business.name}`,
+
+        department:
+          "事業成果",
+
+        type:
+          "business_task",
+      },
+
+      human_gate: {
+        action:
+          "human_gate_publication",
+
+        title:
+          `Human Gate：公開承認：${business.name}`,
+
+        department:
+          "リスク管理",
+
+        type:
+          "human_gate",
+      },
+    };
 
   const definition =
     definitions[stage];
@@ -970,32 +2540,1251 @@ async function createBusinessPipelineTask(
     );
   }
 
-  const type =
-    stage === "human_gate"
-      ? "human_gate"
-      : "business_task";
+  return createTask(
+    env,
+    {
+      type:
+        definition.type,
 
-  const status =
-    stage === "human_gate"
-      ? "waiting_human"
-      : "pending";
+      action:
+        definition.action,
 
-  return createTask(env, {
-    type,
-    action: definition.action,
-    title: definition.title,
-    department: definition.department,
-    priority:
-      stage === "human_gate"
-        ? 100
-        : 90,
-    status,
-    internalOnly: false,
-    safeAutonomy: false,
-    externalAction:
-      stage === "human_gate",
-    businessId: business.id,
-  });
+      title:
+        definition.title,
+
+      department:
+        definition.department,
+
+      priority:
+        stage ===
+        "human_gate"
+          ? 100
+          : 90,
+
+      status:
+        stage ===
+        "human_gate"
+          ? "waiting_human"
+          : "pending",
+
+      internalOnly:
+        false,
+
+      safeAutonomy:
+        false,
+
+      externalAction:
+        stage ===
+        "human_gate",
+
+      requiresHuman:
+        stage ===
+        "human_gate",
+
+      businessId:
+        business.id,
+
+      pipeline:
+        {
+          type:
+            "business_pipeline",
+
+          stage,
+
+          businessId:
+            business.id,
+        },
+    }
+  );
+}
+
+async function researchSource(
+  env,
+  sourceId
+) {
+  const source =
+    RESEARCH_SOURCES[
+      sourceId
+    ];
+
+  if (!source) {
+    throw new Error(
+      `Unknown research source: ${sourceId}`
+    );
+  }
+
+  const response =
+    await fetch(
+      source.url,
+      {
+        method:
+          "GET",
+
+        headers:
+          {
+            "user-agent":
+              "AI-Company-Core/6.1.2 research gateway",
+
+            accept:
+              "text/html,application/xhtml+xml,application/json",
+          },
+      }
+    );
+
+  const rawText =
+    await response.text();
+
+  const contentPreview =
+    rawText.length >
+    20000
+      ? rawText.slice(
+          0,
+          20000
+        )
+      : rawText;
+
+  const evidence =
+    {
+      id:
+        randomId(
+          "evidence"
+        ),
+
+      sourceId,
+
+      sourceName:
+        source.name,
+
+      url:
+        source.url,
+
+      status:
+        response.status,
+
+      ok:
+        response.ok,
+
+      retrievedAt:
+        nowIso(),
+
+      contentPreview,
+    };
+
+  await setStore(
+    env,
+    `evidence:${evidence.id}`,
+    evidence
+  );
+
+  const company =
+    await getStore(
+      env,
+      "company",
+      defaultCompany()
+    );
+
+  company.researchEvidenceIndex =
+    Array.isArray(
+      company.researchEvidenceIndex
+    )
+      ? company.researchEvidenceIndex
+      : [];
+
+  company.researchEvidenceIndex.push(
+    {
+      id:
+        evidence.id,
+
+      sourceId:
+        evidence.sourceId,
+
+      sourceName:
+        evidence.sourceName,
+
+      url:
+        evidence.url,
+
+      status:
+        evidence.status,
+
+      ok:
+        evidence.ok,
+
+      retrievedAt:
+        evidence.retrievedAt,
+    }
+  );
+
+  company.researchEvidenceIndex =
+    company.researchEvidenceIndex.slice(
+      -500
+    );
+
+  await setStore(
+    env,
+    "company",
+    company
+  );
+
+  await addMemory(
+    env,
+    {
+      type:
+        "external_research",
+
+      summary:
+        `${source.name}から外部証拠を取得した。`,
+
+      evidenceId:
+        evidence.id,
+    }
+  );
+
+  return evidence;
+}
+
+async function buildCapabilityArtifact(
+  env,
+  department
+) {
+  const company =
+    await getStore(
+      env,
+      "company",
+      defaultCompany()
+    );
+
+  const generated =
+    GENERATED_DEPARTMENTS[
+      department
+    ];
+
+  const payload =
+    {
+      department,
+
+      mission:
+        generated?.mission ??
+        `${department}に関する会社能力を維持・改善する。`,
+
+      currentCapability:
+        generated?.trigger
+          ? company
+              .capabilitySnapshot?.[
+                generated.trigger
+              ] ??
+            false
+          : true,
+
+      nextAction:
+        definitionNextAction(
+          department
+        ),
+
+      autonomy:
+        {
+          internalTaskCreation:
+            true,
+
+          internalArtifactCreation:
+            true,
+
+          externalIrreversibleAction:
+            false,
+        },
+    };
+
+  const syntheticTask =
+    {
+      id:
+        randomId(
+          "capability"
+        ),
+
+      action:
+        "capability_analysis",
+
+      department,
+
+      businessId:
+        null,
+    };
+
+  return saveArtifact(
+    env,
+    syntheticTask,
+    payload
+  );
+}
+
+async function auditState(
+  env
+) {
+  const company =
+    await getStore(
+      env,
+      "company",
+      defaultCompany()
+    );
+
+  const tasks =
+    (
+      await getStore(
+        env,
+        "tasks",
+        []
+      )
+    ).map(
+      normalizeTask
+    );
+
+  const anomalies =
+    [];
+
+  const businessIds =
+    new Set(
+      (
+        company.businesses ??
+        []
+      ).map(
+        (business) =>
+          business.id
+      )
+    );
+
+  for (
+    const task of tasks
+  ) {
+    if (
+      task.businessId &&
+      !businessIds.has(
+        applyBusinessAlias(
+          company,
+          task.businessId
+        )
+      )
+    ) {
+      anomalies.push(
+        {
+          type:
+            "orphan_business_reference",
+
+          taskId:
+            task.id,
+
+          businessId:
+            task.businessId,
+        }
+      );
+    }
+  }
+
+  const names =
+    new Map();
+
+  for (
+    const business of
+      company.businesses ??
+      []
+  ) {
+    const key =
+      safeString(
+        business.name,
+        ""
+      ).toLowerCase();
+
+    if (!key) {
+      continue;
+    }
+
+    names.set(
+      key,
+      (names.get(key) ??
+        0) + 1
+    );
+  }
+
+  for (
+    const [
+      name,
+      count,
+    ] of names
+  ) {
+    if (
+      count > 1
+    ) {
+      anomalies.push(
+        {
+          type:
+            "duplicate_business_name",
+
+          name,
+
+          count,
+        }
+      );
+    }
+  }
+
+  const waitingHuman =
+    getPendingHumanGates(
+      tasks
+    );
+
+  const gateTaskIds =
+    new Set(
+      (
+        company.humanGates ??
+        []
+      ).map(
+        (gate) =>
+          gate.taskId
+      )
+    );
+
+  for (
+    const task of
+      waitingHuman
+  ) {
+    if (
+      !gateTaskIds.has(
+        task.id
+      )
+    ) {
+      anomalies.push(
+        {
+          type:
+            "missing_human_gate_record",
+
+          taskId:
+            task.id,
+        }
+      );
+    }
+  }
+
+  const capabilities =
+    capabilitySnapshot(
+      company,
+      tasks
+    );
+
+  if (
+    !company.capabilitySnapshot ||
+    JSON.stringify(
+      company.capabilitySnapshot
+    ) !==
+      JSON.stringify(
+        capabilities
+      )
+  ) {
+    anomalies.push(
+      {
+        type:
+          "capability_snapshot_stale",
+      }
+    );
+  }
+
+  const completedWithArtifactId =
+    tasks.filter(
+      (task) =>
+        task.status ===
+          "completed" &&
+        task.artifactId
+    );
+
+  for (
+    const task of
+      completedWithArtifactId.slice(
+        -100
+      )
+  ) {
+    const artifact =
+      await getStore(
+        env,
+        `artifact:${task.artifactId}`,
+        null
+      );
+
+    if (!artifact) {
+      anomalies.push(
+        {
+          type:
+            "missing_artifact",
+
+          taskId:
+            task.id,
+
+          artifactId:
+            task.artifactId,
+        }
+      );
+    }
+  }
+
+  const pipelineTaskCount =
+    tasks.filter(
+      (task) =>
+        task.pipeline?.type ===
+        "business_pipeline"
+    ).length;
+
+  if (
+    (company
+      .businesses?.length ??
+      0) > 0 &&
+    pipelineTaskCount ===
+      0
+  ) {
+    anomalies.push(
+      {
+        type:
+          "business_has_no_pipeline_history",
+      }
+    );
+  }
+
+  const expectedDepartments =
+    normalizeDepartments(
+      company.departments
+    );
+
+  if (
+    JSON.stringify(
+      expectedDepartments
+    ) !==
+    JSON.stringify(
+      company.departments ??
+        []
+    )
+  ) {
+    anomalies.push(
+      {
+        type:
+          "department_normalization_needed",
+      }
+    );
+  }
+
+  if (
+    company.schemaVersion !==
+    SCHEMA_VERSION
+  ) {
+    anomalies.push(
+      {
+        type:
+          "schema_version_mismatch",
+
+        current:
+          company.schemaVersion ??
+          null,
+
+        expected:
+          SCHEMA_VERSION,
+      }
+    );
+  }
+
+  company.maintenance =
+    company.maintenance ??
+    {};
+
+  company.maintenance.lastAuditAt =
+    nowIso();
+
+  company.maintenance.lastAnomalies =
+    anomalies.slice(
+      -200
+    );
+
+  await setStore(
+    env,
+    "company",
+    company
+  );
+
+  return {
+    ok:
+      true,
+
+    runtime:
+      RUNTIME_VERSION,
+
+    anomalyCount:
+      anomalies.length,
+
+    anomalies,
+
+    capabilities,
+  };
+}
+
+async function ensureMaintenanceTasks(
+  env,
+  audit
+) {
+  const created =
+    [];
+
+  const mappings =
+    {
+      orphan_business_reference:
+        {
+          action:
+            "self_maintenance_state_reconciliation",
+
+          title:
+            "自己保守：事業参照を修復する",
+        },
+
+      duplicate_business_name:
+        {
+          action:
+            "self_maintenance_state_reconciliation",
+
+          title:
+            "自己保守：事業重複を整理する",
+        },
+
+      missing_human_gate_record:
+        {
+          action:
+            "self_maintenance_human_gate_reconciliation",
+
+          title:
+            "自己保守：Human Gate記録を再構築する",
+        },
+
+      capability_snapshot_stale:
+        {
+          action:
+            "self_maintenance_capability_reconciliation",
+
+          title:
+            "自己保守：Capability Snapshotを再構築する",
+        },
+
+      missing_artifact:
+        {
+          action:
+            "self_maintenance_artifact_reconciliation",
+
+          title:
+            "自己保守：Artifact参照を再構築する",
+        },
+
+      business_has_no_pipeline_history:
+        {
+          action:
+            "self_maintenance_state_reconciliation",
+
+          title:
+            "自己保守：事業パイプライン履歴を点検する",
+        },
+
+      department_normalization_needed:
+        {
+          action:
+            "self_maintenance_organization_reconciliation",
+
+          title:
+            "自己保守：組織状態を正規化する",
+        },
+
+      schema_version_mismatch:
+        {
+          action:
+            "self_maintenance_state_reconciliation",
+
+          title:
+            "自己保守：Schema移行を完了する",
+        },
+    };
+
+  const uniqueActions =
+    new Set();
+
+  for (
+    const anomaly of
+      audit.anomalies
+  ) {
+    const definition =
+      mappings[
+        anomaly.type
+      ];
+
+    if (
+      !definition ||
+      uniqueActions.has(
+        definition.action
+      )
+    ) {
+      continue;
+    }
+
+    uniqueActions.add(
+      definition.action
+    );
+
+    const tasks =
+      (
+        await getStore(
+          env,
+          "tasks",
+          []
+        )
+      ).map(
+        normalizeTask
+      );
+
+    const existing =
+      tasks.find(
+        (task) =>
+          task.action ===
+            definition.action &&
+          (
+            task.status ===
+              "pending" ||
+            task.status ===
+              "running"
+          )
+      );
+
+    if (
+      existing
+    ) {
+      continue;
+    }
+
+    const task =
+      await createTask(
+        env,
+        {
+          type:
+            "internal_task",
+
+          action:
+            definition.action,
+
+          title:
+            definition.title,
+
+          description:
+            `検出された状態不整合を会社自身が修復する。対象: ${anomaly.type}`,
+
+          department:
+            "開発基盤",
+
+          priority:
+            110,
+
+          internalOnly:
+            true,
+
+          safeAutonomy:
+            true,
+
+          externalAction:
+            false,
+        }
+      );
+
+    created.push(
+      task
+    );
+  }
+
+  return {
+    created,
+  };
+}
+
+async function generateSelfDevelopmentProposal(
+  env
+) {
+  const audit =
+    await auditState(
+      env
+    );
+
+  const company =
+    await getStore(
+      env,
+      "company",
+      defaultCompany()
+    );
+
+  const proposal =
+    {
+      type:
+        "self_development_proposal",
+
+      runtime:
+        RUNTIME_VERSION,
+
+      target:
+        "worker.js",
+
+      purpose:
+        "会社Core自身の状態整合性・自己保守能力を継続強化する。",
+
+      detectedProblems:
+        audit.anomalies,
+
+      plannedChanges:
+        [
+          "Company / Task / Human Gate / Capability の状態を一元的に再構成する。",
+          "旧バージョンのBusiness IDを正規IDへ移行する。",
+          "完了済みTaskとCapability Snapshotの矛盾を自動修復する。",
+          "Human GateのTask記録とCompany Stateを同期する。",
+          "Artifact参照の欠落を監査する。",
+          "Sandbox / Test / Deploy を将来分離できるAdapter境界を維持する。",
+        ],
+
+      tests:
+        [
+          "既存5.1タスクの保持",
+          "旧Business IDから正規Business IDへの移行",
+          "Product/Sales実績のCapability反映",
+          "Human Gate pending状態の再構築",
+          "再実行時の冪等性",
+          "外部不可逆操作が自動実行されないこと",
+        ],
+
+      safetyBoundary:
+        {
+          externalPublication:
+            false,
+
+          payment:
+            false,
+
+          contract:
+            false,
+
+          externalCommunication:
+            false,
+
+          productionDeploy:
+            false,
+        },
+
+      generatedAt:
+        nowIso(),
+    };
+
+  const syntheticTask =
+    {
+      id:
+        randomId(
+          "selfdev"
+        ),
+
+      action:
+        "code_change_candidate",
+
+      department:
+        "開発基盤",
+
+      businessId:
+        null,
+    };
+
+  const artifact =
+    await saveArtifact(
+      env,
+      syntheticTask,
+      proposal
+    );
+
+  await addMemory(
+    env,
+    {
+      type:
+        "self_development_proposal",
+
+      summary:
+        "会社自身が自己保守・自己改善の変更案を生成した。",
+
+      artifactId:
+        artifact.id,
+    }
+  );
+
+  return {
+    proposal,
+    artifact,
+    company,
+  };
+}
+
+async function executeMaintenanceTask(
+  env,
+  task
+) {
+  let payload;
+
+  switch (
+    task.action
+  ) {
+    case "self_maintenance_state_reconciliation": {
+      const result =
+        await mergeAndMigrateState(
+          env
+        );
+
+      payload =
+        {
+          action:
+            task.action,
+
+          status:
+            "repaired",
+
+          migrationChanged:
+            result.changed,
+
+          businessCount:
+            result.company
+              .businesses.length,
+
+          taskCount:
+            result.tasks.length,
+
+          businessAliases:
+            result.company
+              .migration
+              .businessAliases,
+
+          supersededCount:
+            result.supersededCount,
+        };
+
+      break;
+    }
+
+    case "self_maintenance_capability_reconciliation": {
+      const company =
+        await getStore(
+          env,
+          "company",
+          defaultCompany()
+        );
+
+      const tasks =
+        (
+          await getStore(
+            env,
+            "tasks",
+            []
+          )
+        ).map(
+          normalizeTask
+        );
+
+      company.capabilitySnapshot =
+        capabilitySnapshot(
+          company,
+          tasks
+        );
+
+      company.schemaVersion =
+        SCHEMA_VERSION;
+
+      company.runtimeVersion =
+        RUNTIME_VERSION;
+
+      await setStore(
+        env,
+        "company",
+        company
+      );
+
+      payload =
+        {
+          action:
+            task.action,
+
+          status:
+            "repaired",
+
+          capabilitySnapshot:
+            company.capabilitySnapshot,
+        };
+
+      break;
+    }
+
+    case "self_maintenance_human_gate_reconciliation": {
+      const company =
+        await getStore(
+          env,
+          "company",
+          defaultCompany()
+        );
+
+      const tasks =
+        (
+          await getStore(
+            env,
+            "tasks",
+            []
+          )
+        ).map(
+          normalizeTask
+        );
+
+      const humanGates =
+        rebuildHumanGates(
+          company,
+          tasks
+        );
+
+      await setStore(
+        env,
+        "company",
+        company
+      );
+
+      payload =
+        {
+          action:
+            task.action,
+
+          status:
+            "repaired",
+
+          humanGateCount:
+            humanGates.length,
+
+          pending:
+            humanGates.filter(
+              (gate) =>
+                gate.status ===
+                "pending"
+            ).length,
+        };
+
+      break;
+    }
+
+    case "self_maintenance_artifact_reconciliation": {
+      const tasks =
+        (
+          await getStore(
+            env,
+            "tasks",
+            []
+          )
+        ).map(
+          normalizeTask
+        );
+
+      const previous =
+        await getStore(
+          env,
+          "artifact_index",
+          []
+        );
+
+      const index =
+        Array.isArray(
+          previous
+        )
+          ? [
+              ...previous,
+            ]
+          : [];
+
+      for (
+        const item of tasks
+      ) {
+        if (
+          item.artifactId &&
+          !index.some(
+            (entry) =>
+              entry.id ===
+              item.artifactId
+          )
+        ) {
+          index.push(
+            {
+              id:
+                item.artifactId,
+
+              taskId:
+                item.id,
+
+              businessId:
+                item.businessId,
+
+              department:
+                item.department,
+
+              action:
+                item.action,
+
+              createdAt:
+                item.updatedAt ??
+                nowIso(),
+
+              reconstructed:
+                true,
+            }
+          );
+        }
+
+        const legacyKey =
+          item.cloudExecution
+            ?.artifactKey;
+
+        if (
+          legacyKey &&
+          !index.some(
+            (entry) =>
+              entry.legacyKey ===
+              legacyKey
+          )
+        ) {
+          index.push(
+            {
+              id:
+                item.artifactId ??
+                randomId(
+                  "legacy_artifact"
+                ),
+
+              taskId:
+                item.id,
+
+              businessId:
+                item.businessId,
+
+              department:
+                item.department,
+
+              action:
+                item.action,
+
+              createdAt:
+                item.updatedAt ??
+                nowIso(),
+
+              legacyKey,
+
+              reconstructed:
+                true,
+            }
+          );
+        }
+      }
+
+      await setStore(
+        env,
+        "artifact_index",
+        index.slice(
+          -1000
+        )
+      );
+
+      payload =
+        {
+          action:
+            task.action,
+
+          status:
+            "repaired",
+
+          artifactIndexCount:
+            index.length,
+        };
+
+      break;
+    }
+
+    case "self_maintenance_organization_reconciliation": {
+      const result =
+        await reconcileOrganization(
+          env
+        );
+
+      payload =
+        {
+          action:
+            task.action,
+
+          status:
+            "repaired",
+
+          addedDepartments:
+            result.added,
+
+          departments:
+            result.after,
+        };
+
+      break;
+    }
+
+    default:
+      throw new Error(
+        `Unsupported maintenance action: ${task.action}`
+      );
+  }
+
+  const artifact =
+    await saveArtifact(
+      env,
+      task,
+      payload
+    );
+
+  await addMemory(
+    env,
+    {
+      type:
+        "self_maintenance",
+
+      taskId:
+        task.id,
+
+      action:
+        task.action,
+
+      summary:
+        payload.status ??
+        "自己保守処理完了",
+
+      artifactId:
+        artifact.id,
+    }
+  );
+
+  const company =
+    await getStore(
+      env,
+      "company",
+      defaultCompany()
+    );
+
+  company.maintenance =
+    company.maintenance ??
+    {};
+
+  company.maintenance.lastRepairAt =
+    nowIso();
+
+  await setStore(
+    env,
+    "company",
+    company
+  );
+
+  return {
+    payload,
+    artifact,
+  };
 }
 
 async function executeBusinessTask(
@@ -1003,42 +3792,44 @@ async function executeBusinessTask(
   task,
   business
 ) {
-  let payload = null;
+  let payload;
   let nextTask = null;
   let evaluationLevel = null;
-  let readyForHumanGate = false;
+  let readyForHumanGate =
+    false;
 
-  switch (task.action) {
-    case "workspace_analysis": {
-      payload = {
-        type: "workspace_analysis",
-        status: "success",
-        summary:
-          "会社ワークスペースを分析し、事業実行に必要な内部情報を整理した。",
-        generatedAt: nowIso(),
-      };
+  switch (
+    task.action
+  ) {
+    case "research_brief":
+      payload =
+        {
+          type:
+            "research_brief",
 
-      evaluationLevel =
-        "内部分析成功・次工程実行可能";
-      break;
-    }
+          businessId:
+            business.id,
 
-    case "research_brief": {
-      payload = {
-        type: "research_brief",
-        businessId: business.id,
-        businessName: business.name,
-        target: business.target,
-        researchQuestions: [
-          "市場にどのような需要があるか",
-          "既存サービスは何を提供しているか",
-          "小規模事業者が調査で困るポイントは何か",
-          "継続課金にできる余地があるか",
-        ],
-        status:
-          "調査設計成功・外部データ確認前",
-        generatedAt: nowIso(),
-      };
+          businessName:
+            business.name,
+
+          target:
+            business.target,
+
+          researchQuestions:
+            [
+              "市場にどのような需要があるか",
+              "既存サービスは何を提供しているか",
+              "小規模事業者が調査で困るポイントは何か",
+              "継続課金にできる余地があるか",
+            ],
+
+          status:
+            "調査設計成功・外部データ確認前",
+
+          generatedAt:
+            nowIso(),
+        };
 
       evaluationLevel =
         "調査設計成功・外部データ確認前";
@@ -1051,25 +3842,37 @@ async function executeBusinessTask(
         );
 
       break;
-    }
 
-    case "product_prototype": {
-      payload = {
-        type: "product_prototype",
-        businessId: business.id,
-        businessName: business.name,
-        offer: {
-          product:
-            "小規模事業向け調査レポート生成サービス",
-          output:
-            "市場・競合・制度情報を整理した簡易レポート",
-          delivery:
-            "オンライン提供",
-        },
-        status:
-          "商品構成成功・顧客検証前",
-        generatedAt: nowIso(),
-      };
+    case "product_prototype":
+      payload =
+        {
+          type:
+            "product_prototype",
+
+          businessId:
+            business.id,
+
+          businessName:
+            business.name,
+
+          offer:
+            {
+              product:
+                "小規模事業向け調査レポート生成サービス",
+
+              output:
+                "市場・競合・制度情報を整理した簡易レポート",
+
+              delivery:
+                "オンライン提供",
+            },
+
+          status:
+            "商品構成成功・顧客検証前",
+
+          generatedAt:
+            nowIso(),
+        };
 
       evaluationLevel =
         "商品構成成功・顧客検証前";
@@ -1082,28 +3885,41 @@ async function executeBusinessTask(
         );
 
       break;
-    }
 
-    case "sales_package_generation": {
-      payload = {
-        type: "sales_package_generation",
-        businessId: business.id,
-        businessName: business.name,
-        package: {
-          headline:
-            "調査にかかる時間を短縮する小規模事業向けレポート",
-          salesPoints: [
-            "調査項目の整理を支援",
-            "競合・市場・制度情報を一つにまとめる",
-            "意思決定用の要点を短時間で把握する",
-          ],
-          monetization:
-            "単発レポート + 継続利用",
-        },
-        status:
-          "販売準備成功・事業成果確認前",
-        generatedAt: nowIso(),
-      };
+    case "sales_package_generation":
+      payload =
+        {
+          type:
+            "sales_package_generation",
+
+          businessId:
+            business.id,
+
+          businessName:
+            business.name,
+
+          package:
+            {
+              headline:
+                "調査にかかる時間を短縮する小規模事業向けレポート",
+
+              salesPoints:
+                [
+                  "調査項目の整理を支援",
+                  "競合・市場・制度情報を一つにまとめる",
+                  "意思決定用の要点を短時間で把握する",
+                ],
+
+              monetization:
+                "単発レポート + 継続利用",
+            },
+
+          status:
+            "販売準備成功・事業成果確認前",
+
+          generatedAt:
+            nowIso(),
+        };
 
       evaluationLevel =
         "販売準備成功・事業成果確認前";
@@ -1116,30 +3932,52 @@ async function executeBusinessTask(
         );
 
       break;
-    }
 
-    case "sales_evaluation": {
-      payload = {
-        type: "sales_evaluation",
-        businessId: business.id,
-        businessName: business.name,
-        checks: {
-          offerDefined: true,
-          targetDefined: true,
-          salesMessageDefined: true,
-          revenueVerified: false,
-          customerVerified: false,
-          externalPublication: false,
-        },
-        result:
-          "販売構成評価完了・公開承認待ち",
-        generatedAt: nowIso(),
-      };
+    case "sales_evaluation":
+      payload =
+        {
+          type:
+            "sales_evaluation",
+
+          businessId:
+            business.id,
+
+          businessName:
+            business.name,
+
+          checks:
+            {
+              offerDefined:
+                true,
+
+              targetDefined:
+                true,
+
+              salesMessageDefined:
+                true,
+
+              revenueVerified:
+                false,
+
+              customerVerified:
+                false,
+
+              externalPublication:
+                false,
+            },
+
+          result:
+            "販売構成評価完了・公開承認待ち",
+
+          generatedAt:
+            nowIso(),
+        };
 
       evaluationLevel =
         "販売構成評価完了・公開承認待ち";
 
-      readyForHumanGate = true;
+      readyForHumanGate =
+        true;
 
       nextTask =
         await createBusinessPipelineTask(
@@ -1149,7 +3987,6 @@ async function executeBusinessTask(
         );
 
       break;
-    }
 
     default:
       throw new Error(
@@ -1164,15 +4001,26 @@ async function executeBusinessTask(
       payload
     );
 
-  await saveMemory(env, {
-    type: "business_execution",
-    businessId: business.id,
-    taskId: task.id,
-    action: task.action,
-    summary:
-      evaluationLevel ??
-      "事業タスク完了",
-  });
+  await addMemory(
+    env,
+    {
+      type:
+        "business_execution",
+
+      businessId:
+        business.id,
+
+      taskId:
+        task.id,
+
+      action:
+        task.action,
+
+      summary:
+        evaluationLevel ??
+        "事業タスク完了",
+    }
+  );
 
   return {
     payload,
@@ -1189,7 +4037,9 @@ async function executeInternalTask(
 ) {
   let payload;
 
-  switch (task.action) {
+  switch (
+    task.action
+  ) {
     case "research_external_evidence": {
       const evidence =
         await researchSource(
@@ -1197,143 +4047,206 @@ async function executeInternalTask(
           "meti"
         );
 
-      payload = {
-        department: task.department,
-        action: task.action,
-        result:
-          "外部証拠取得を実行した。",
-        evidenceId:
-          evidence.id,
-        source:
-          evidence.sourceName,
-        retrievedAt:
-          evidence.retrievedAt,
-      };
+      payload =
+        {
+          department:
+            task.department,
+
+          action:
+            task.action,
+
+          result:
+            "外部証拠取得を実行した。",
+
+          evidenceId:
+            evidence.id,
+
+          source:
+            evidence.sourceName,
+
+          retrievedAt:
+            evidence.retrievedAt,
+        };
 
       break;
     }
 
     case "customer_feedback_analysis": {
-      const company = await getStore(
-        env,
-        "company",
-        defaultCompany()
-      );
+      const company =
+        await getStore(
+          env,
+          "company",
+          defaultCompany()
+        );
 
-      payload = {
-        department: task.department,
-        action: task.action,
-        customerCount:
-          company.customers.length,
-        conclusion:
-          company.customers.length > 0
-            ? "顧客入力を確認し、改善候補を抽出した。"
-            : "顧客データ未取得。顧客接点の構築が必要。",
-      };
+      payload =
+        {
+          department:
+            task.department,
+
+          action:
+            task.action,
+
+          customerCount:
+            company.customers
+              .length,
+
+          conclusion:
+            company.customers
+              .length > 0
+              ? "顧客入力を確認し、改善候補を抽出した。"
+              : "顧客データ未取得。顧客接点の構築が必要。",
+        };
 
       break;
     }
 
     case "outcome_analysis": {
-      const company = await getStore(
-        env,
-        "company",
-        defaultCompany()
-      );
+      const company =
+        await getStore(
+          env,
+          "company",
+          defaultCompany()
+        );
 
       const totalRevenue =
         company.outcomes.reduce(
-          (sum, outcome) =>
-            sum + Number(outcome.revenue ?? 0),
+          (
+            sum,
+            outcome
+          ) =>
+            sum +
+            Number(
+              outcome.revenue ??
+                0
+            ),
           0
         );
 
-      payload = {
-        department: task.department,
-        action: task.action,
-        outcomeCount:
-          company.outcomes.length,
-        totalRevenue,
-        conclusion:
-          company.outcomes.length > 0
-            ? "事業成果を評価可能。"
-            : "事業成果データ未取得。実成果観測の接続が必要。",
-      };
+      payload =
+        {
+          department:
+            task.department,
+
+          action:
+            task.action,
+
+          outcomeCount:
+            company.outcomes
+              .length,
+
+          totalRevenue,
+
+          conclusion:
+            company.outcomes
+              .length > 0
+              ? "事業成果を評価可能。"
+              : "事業成果データ未取得。実成果観測の接続が必要。",
+        };
 
       break;
     }
 
-    case "development_infrastructure": {
-      payload = {
-        department: task.department,
-        action: task.action,
-        architecture: {
-          sandbox:
-            "本番環境から分離された安全な検証領域",
-          test:
-            "自動テスト・構文検証・回帰確認",
-          deploy:
-            "検証後にのみ本番反映可能な境界",
-        },
-        policy:
-          "本番破壊・外部不可逆操作は自律実行しない。",
-        next:
-          "コード生成・テスト・差分評価の自動化へ進む。",
-      };
+    case "development_infrastructure":
+      payload =
+        {
+          department:
+            task.department,
+
+          action:
+            task.action,
+
+          architecture:
+            {
+              sandbox:
+                "本番環境から分離された安全な検証領域",
+
+              test:
+                "自動テスト・構文検証・回帰確認",
+
+              deploy:
+                "検証後にのみ本番反映可能な境界",
+            },
+
+          policy:
+            "本番破壊・外部不可逆操作は自律実行しない。",
+
+          next:
+            "自己変更Candidate生成と検証へ進む。",
+        };
 
       break;
-    }
 
-    case "platform_decoupling": {
-      payload = {
-        department: task.department,
-        action: task.action,
-        adapters: {
-          storage:
-            "StorageAdapter",
-          scheduler:
-            "SchedulerAdapter",
-          executor:
-            "ExecutorAdapter",
-          web:
-            "WebAdapter",
-        },
-        goal:
-          "Cloudflare固有実装を会社Coreから分離する。",
-        next:
-          "プラットフォーム交換時にCoreの変更を最小化する。",
-      };
+    case "platform_decoupling":
+      payload =
+        {
+          department:
+            task.department,
 
-      break;
-    }
+          action:
+            task.action,
 
-    case "internal_department_improvement": {
-      payload = {
-        department: task.department,
-        action: task.action,
-        mission:
-          definitionNextAction(
-            task.department
-          ),
-        status:
-          "内部能力改善案を生成した。",
-      };
+          adapters:
+            {
+              storage:
+                "StorageAdapter",
+
+              scheduler:
+                "SchedulerAdapter",
+
+              executor:
+                "ExecutorAdapter",
+
+              web:
+                "WebAdapter",
+            },
+
+          goal:
+            "Cloudflare固有実装を会社Coreから分離する。",
+
+          next:
+            "プラットフォーム交換時にCore変更を最小化する。",
+        };
 
       break;
-    }
 
-    default: {
-      payload = {
-        department: task.department,
-        action: task.action,
-        result:
-          "内部部門タスクを実行した。",
-        nextAction:
-          definitionNextAction(
-            task.department
-          ),
-      };
-    }
+    case "internal_department_improvement":
+      payload =
+        {
+          department:
+            task.department,
+
+          action:
+            task.action,
+
+          mission:
+            definitionNextAction(
+              task.department
+            ),
+
+          status:
+            "内部能力改善案を生成した。",
+        };
+
+      break;
+
+    default:
+      payload =
+        {
+          department:
+            task.department,
+
+          action:
+            task.action,
+
+          result:
+            "内部部門タスクを実行した。",
+
+          nextAction:
+            definitionNextAction(
+              task.department
+            ),
+        };
   }
 
   const artifact =
@@ -1343,17 +4256,28 @@ async function executeInternalTask(
       payload
     );
 
-  await saveMemory(env, {
-    type: "internal_execution",
-    department: task.department,
-    taskId: task.id,
-    action: task.action,
-    summary:
-      payload.result ??
-      payload.conclusion ??
-      payload.status ??
-      "内部能力を更新した。",
-  });
+  await addMemory(
+    env,
+    {
+      type:
+        "internal_execution",
+
+      department:
+        task.department,
+
+      taskId:
+        task.id,
+
+      action:
+        task.action,
+
+      summary:
+        payload.result ??
+        payload.conclusion ??
+        payload.status ??
+        "内部能力を更新した。",
+    }
+  );
 
   return {
     payload,
@@ -1365,26 +4289,40 @@ async function executeTask(
   env,
   task
 ) {
-  const locked =
-    await updateTask(
-      env,
-      task.id,
-      {
-        status: "running",
-      }
-    );
+  await updateTask(
+    env,
+    task.id,
+    {
+      status:
+        "running",
 
-  if (!locked) {
-    throw new Error(
-      `Task not found: ${task.id}`
-    );
-  }
+      runCount:
+        Number(
+          task.runCount ??
+            0
+        ) + 1,
+
+      lastRunAt:
+        nowIso(),
+    }
+  );
 
   try {
     let result;
 
     if (
-      task.type === "business_task"
+      task.action?.startsWith(
+        "self_maintenance_"
+      )
+    ) {
+      result =
+        await executeMaintenanceTask(
+          env,
+          task
+        );
+    } else if (
+      task.type ===
+      "business_task"
     ) {
       const company =
         await getStore(
@@ -1396,7 +4334,8 @@ async function executeTask(
       const business =
         company.businesses.find(
           (item) =>
-            item.id === task.businessId
+            item.id ===
+            task.businessId
         );
 
       if (!business) {
@@ -1412,16 +4351,8 @@ async function executeTask(
           business
         );
     } else if (
-      task.type === "internal_task"
-    ) {
-      result =
-        await executeInternalTask(
-          env,
-          task
-        );
-    } else if (
-      task.action ===
-      "research_external_evidence"
+      task.type ===
+      "internal_task"
     ) {
       result =
         await executeInternalTask(
@@ -1439,52 +4370,90 @@ async function executeTask(
         env,
         task.id,
         {
-          status: "completed",
-          result: result.payload ?? null,
+          status:
+            "completed",
+
+          result:
+            result.payload ??
+            null,
+
           artifactId:
-            result.artifact?.id ?? null,
+            result.artifact
+              ?.id ??
+            null,
         }
       );
 
     return {
-      status: "task_executed",
-      task: updated,
+      status:
+        "task_executed",
+
+      task:
+        updated,
+
       artifact:
-        result.artifact ?? null,
+        result.artifact ??
+        null,
+
       nextTask:
-        result.nextTask ?? null,
+        result.nextTask ??
+        null,
+
       evaluationLevel:
-        result.evaluationLevel ?? null,
+        result.evaluationLevel ??
+        null,
+
       readyForHumanGate:
-        result.readyForHumanGate ?? false,
+        result.readyForHumanGate ??
+        false,
     };
-  } catch (error) {
+  } catch (
+    error
+  ) {
     const failed =
       await updateTask(
         env,
         task.id,
         {
-          status: "failed",
-          result: {
-            error:
-              error?.message ??
-              String(error),
-          },
+          status:
+            "failed",
+
+          result:
+            {
+              error:
+                error?.message ??
+                String(
+                  error
+                ),
+            },
         }
       );
 
-    await saveMemory(env, {
-      type: "execution_failure",
-      taskId: task.id,
-      department: task.department,
-      error:
-        error?.message ??
-        String(error),
-    });
+    await addMemory(
+      env,
+      {
+        type:
+          "execution_failure",
+
+        taskId:
+          task.id,
+
+        department:
+          task.department,
+
+        error:
+          error?.message ??
+          String(error),
+      }
+    );
 
     return {
-      status: "task_failed",
-      task: failed,
+      status:
+        "task_failed",
+
+      task:
+        failed,
+
       error:
         error?.message ??
         String(error),
@@ -1492,130 +4461,218 @@ async function executeTask(
   }
 }
 
-async function companyCycle(env) {
-  const {
+async function companyCycle(
+  env
+) {
+  let {
     company,
-    tasks,
-  } = await ensureInitialized(env);
+  } =
+    await ensureInitialized(
+      env
+    );
 
-  const business =
-    await businessDiscovery(env);
+  if (
+    (company.businesses?.length ??
+      0) === 0
+  ) {
+    await createBusinessIfNeeded(
+      env
+    );
+  }
 
-  let currentTasks =
-    await getStore(
-      env,
-      "tasks",
+  const tasks =
+    (
+      await getStore(
+        env,
+        "tasks",
+        []
+      )
+    ).map(
+      normalizeTask
+    );
+
+  const waitingHuman =
+    getPendingHumanGates(
       tasks
     );
 
-  const activeBusinessTask =
-    currentTasks.find(
-      (task) =>
-        task.type === "business_task" &&
-        task.status === "pending"
-    );
-
-  if (!activeBusinessTask) {
-    const hasCompletedResearch =
-      currentTasks.some(
-        (task) =>
-          task.action ===
-            "research_brief" &&
-          task.status === "completed"
-      );
-
-    const hasCompletedProduct =
-      currentTasks.some(
-        (task) =>
-          task.action ===
-            "product_prototype" &&
-          task.status === "completed"
-      );
-
-    const hasCompletedSales =
-      currentTasks.some(
-        (task) =>
-          task.action ===
-            "sales_package_generation" &&
-          task.status === "completed"
-      );
-
-    const hasCompletedEvaluation =
-      currentTasks.some(
-        (task) =>
-          task.action ===
-            "sales_evaluation" &&
-          task.status === "completed"
-      );
-
-    const hasHumanGate =
-      currentTasks.some(
-        (task) =>
-          task.type === "human_gate" &&
-          task.status === "waiting_human"
-      );
-
-    if (
-      !hasCompletedResearch &&
-      !hasHumanGate
-    ) {
-      await createBusinessPipelineTask(
-        env,
-        business,
-        "research"
-      );
-    } else if (
-      hasCompletedResearch &&
-      !hasCompletedProduct &&
-      !hasHumanGate
-    ) {
-      await createBusinessPipelineTask(
-        env,
-        business,
-        "product"
-      );
-    } else if (
-      hasCompletedProduct &&
-      !hasCompletedSales &&
-      !hasHumanGate
-    ) {
-      await createBusinessPipelineTask(
-        env,
-        business,
-        "sales"
-      );
-    } else if (
-      hasCompletedSales &&
-      !hasCompletedEvaluation &&
-      !hasHumanGate
-    ) {
-      await createBusinessPipelineTask(
-        env,
-        business,
-        "sales_evaluation"
-      );
-    }
-  }
-
-  currentTasks =
-    await getStore(
-      env,
-      "tasks",
-      []
-    );
-
-  const executable =
+  let executable =
     sortTasksForExecution(
-      currentTasks.filter(
+      tasks.filter(
         (task) =>
-          task.status === "pending" &&
-          task.type !== "human_gate"
+          task.status ===
+            "pending" &&
+          task.type !==
+            "human_gate"
       )
     );
 
-  let execution = null;
+  if (
+    executable.length === 0 &&
+    waitingHuman.length ===
+      0
+  ) {
+    const business =
+      (
+        await getStore(
+          env,
+          "company",
+          defaultCompany()
+        )
+      ).businesses[0];
 
-  if (executable.length > 0) {
+    const refreshedTasks =
+      (
+        await getStore(
+          env,
+          "tasks",
+          []
+        )
+      ).map(
+        normalizeTask
+      );
+
+    const hasPipeline =
+      refreshedTasks.some(
+        (task) =>
+          task.pipeline
+            ?.businessId ===
+            business.id &&
+          task.status ===
+            "pending"
+      );
+
+    if (
+      !hasPipeline &&
+      business
+    ) {
+      const hasResearch =
+        refreshedTasks.some(
+          (task) =>
+            task.action ===
+              "research_brief" &&
+            task.businessId ===
+              business.id &&
+            task.status ===
+              "completed"
+        );
+
+      const hasProduct =
+        refreshedTasks.some(
+          (task) =>
+            task.action ===
+              "product_prototype" &&
+            task.businessId ===
+              business.id &&
+            task.status ===
+              "completed"
+        );
+
+      const hasSales =
+        refreshedTasks.some(
+          (task) =>
+            task.action ===
+              "sales_package_generation" &&
+            task.businessId ===
+              business.id &&
+            task.status ===
+              "completed"
+        );
+
+      const hasEvaluation =
+        refreshedTasks.some(
+          (task) =>
+            task.action ===
+              "sales_evaluation" &&
+            task.businessId ===
+              business.id &&
+            task.status ===
+              "completed"
+        );
+
+      const gate =
+        refreshedTasks.find(
+          (task) =>
+            task.type ===
+              "human_gate" &&
+            task.businessId ===
+              business.id &&
+            task.status ===
+              "waiting_human"
+        );
+
+      if (!gate) {
+        if (
+          !hasResearch
+        ) {
+          await createBusinessPipelineTask(
+            env,
+            business,
+            "research"
+          );
+        } else if (
+          !hasProduct
+        ) {
+          await createBusinessPipelineTask(
+            env,
+            business,
+            "product"
+          );
+        } else if (
+          !hasSales
+        ) {
+          await createBusinessPipelineTask(
+            env,
+            business,
+            "sales"
+          );
+        } else if (
+          !hasEvaluation
+        ) {
+          await createBusinessPipelineTask(
+            env,
+            business,
+            "sales_evaluation"
+          );
+        } else {
+          await createBusinessPipelineTask(
+            env,
+            business,
+            "human_gate"
+          );
+        }
+      }
+
+      executable =
+        sortTasksForExecution(
+          (
+            await getStore(
+              env,
+              "tasks",
+              []
+            )
+          )
+            .map(
+              normalizeTask
+            )
+            .filter(
+              (task) =>
+                task.status ===
+                  "pending" &&
+                task.type !==
+                  "human_gate"
+            )
+        );
+    }
+  }
+
+  let execution =
+    null;
+
+  if (
+    executable.length >
+    0
+  ) {
     execution =
       await executeTask(
         env,
@@ -1631,48 +4688,27 @@ async function companyCycle(env) {
     );
 
   const refreshedTasks =
-    await getStore(
-      env,
-      "tasks",
-      []
+    (
+      await getStore(
+        env,
+        "tasks",
+        []
+      )
+    ).map(
+      normalizeTask
     );
 
   refreshedCompany.cycleCount =
     Number(
-      refreshedCompany.cycleCount ?? 0
+      refreshedCompany.cycleCount ??
+        0
     ) + 1;
-
-  const pendingHumanGates =
-    getHumanGateTasks(
-      refreshedTasks
-    );
-
-  if (pendingHumanGates.length > 0) {
-    refreshedCompany.currentFocus =
-      "人間承認待ち";
-
-    refreshedCompany.nextAction =
-      "Human Gateで外部不可逆操作を確認する";
-  } else if (execution?.status === "task_executed") {
-    refreshedCompany.currentFocus =
-      execution.evaluationLevel ??
-      execution.task?.result?.result ??
-      execution.task?.title ??
-      "タスク実行完了";
-
-    refreshedCompany.nextAction =
-      execution.nextTask?.title ??
-      "次の会社タスクを評価する";
-  } else {
-    refreshedCompany.currentFocus =
-      "自律ループ稼働中";
-
-    refreshedCompany.nextAction =
-      "Capability Managerで組織と能力を再評価する";
-  }
 
   refreshedCompany.runtimeVersion =
     RUNTIME_VERSION;
+
+  refreshedCompany.schemaVersion =
+    SCHEMA_VERSION;
 
   refreshedCompany.externalActions =
     false;
@@ -1680,10 +4716,62 @@ async function companyCycle(env) {
   refreshedCompany.externalAI =
     false;
 
+  const pendingHuman =
+    getPendingHumanGates(
+      refreshedTasks
+    );
+
+  if (
+    pendingHuman.length > 0
+  ) {
+    refreshedCompany.currentFocus =
+      "人間承認待ち";
+
+    refreshedCompany.nextAction =
+      "Human Gateで外部不可逆操作を確認する";
+  } else if (
+    execution?.status ===
+    "task_executed"
+  ) {
+    refreshedCompany.currentFocus =
+      execution
+        .evaluationLevel ??
+      execution.task?.title ??
+      "タスク実行完了";
+
+    refreshedCompany.nextAction =
+      execution.nextTask
+        ?.title ??
+      "会社状態を再監査する";
+  } else {
+    refreshedCompany.currentFocus =
+      "自律ループ稼働中";
+
+    refreshedCompany.nextAction =
+      "自己保守監査と組織再評価を行う";
+  }
+
+  refreshedCompany.capabilitySnapshot =
+    capabilitySnapshot(
+      refreshedCompany,
+      refreshedTasks
+    );
+
+  rebuildHumanGates(
+    refreshedCompany,
+    refreshedTasks
+  );
+
   await setStore(
     env,
     "company",
     refreshedCompany
+  );
+
+  await setStore(
+    env,
+    "tasks",
+    refreshedTasks
   );
 
   await updateRuntimeMeta(
@@ -1697,10 +4785,13 @@ async function companyCycle(env) {
   return {
     runtime:
       RUNTIME_VERSION,
+
     status:
       execution?.status ??
       "no_task",
+
     execution,
+
     company:
       refreshedCompany,
   };
@@ -1709,34 +4800,25 @@ async function companyCycle(env) {
 async function selfOrganizationCycle(
   env
 ) {
-  const {
-    company,
-  } = await ensureInitialized(env);
-
-  const before =
-    normalizeDepartments(
-      company.departments
-    );
+  await ensureInitialized(
+    env
+  );
 
   const result =
-    await reconcileOrganization(env);
+    await reconcileOrganization(
+      env
+    );
 
   const created =
-    await ensureDepartmentTasks(env);
-
-  const after =
-    normalizeDepartments(
-      result.company.departments
+    await ensureDepartmentTasks(
+      env
     );
 
-  const newDepartments =
-    after.filter(
-      (department) =>
-        !before.includes(department)
-    );
-
-  for (const department of newDepartments) {
-    await createCapabilityArtifact(
+  for (
+    const department of
+      result.added
+  ) {
+    await buildCapabilityArtifact(
       env,
       department
     );
@@ -1745,18 +4827,99 @@ async function selfOrganizationCycle(
   return {
     status:
       "self_organization_completed",
+
     addedDepartments:
-      newDepartments,
+      result.added,
+
     internalTasksCreated:
       created.created,
+
     departments:
-      after,
+      result.after,
+
     capabilitySnapshot:
-      result.company.capabilitySnapshot,
+      result.company
+        .capabilitySnapshot,
   };
 }
 
-async function heartbeat(env) {
+async function maintenanceCycle(
+  env
+) {
+  await ensureInitialized(
+    env
+  );
+
+  const audit =
+    await auditState(
+      env
+    );
+
+  const tasksCreated =
+    await ensureMaintenanceTasks(
+      env,
+      audit
+    );
+
+  let tasks =
+    (
+      await getStore(
+        env,
+        "tasks",
+        []
+      )
+    ).map(
+      normalizeTask
+    );
+
+  const pendingMaintenance =
+    tasks.filter(
+      (task) =>
+        task.internalOnly ===
+          true &&
+        task.action?.startsWith(
+          "self_maintenance_"
+        ) &&
+        task.status ===
+          "pending"
+    );
+
+  let execution =
+    null;
+
+  if (
+    pendingMaintenance.length >
+    0
+  ) {
+    execution =
+      await executeTask(
+        env,
+        sortTasksForExecution(
+          pendingMaintenance
+        )[0]
+      );
+  }
+
+  return {
+    status:
+      "maintenance_completed",
+
+    anomalyCount:
+      audit.anomalyCount,
+
+    anomalies:
+      audit.anomalies,
+
+    created:
+      tasksCreated.created,
+
+    execution,
+  };
+}
+
+async function heartbeat(
+  env
+) {
   const company =
     await getStore(
       env,
@@ -1769,23 +4932,30 @@ async function heartbeat(env) {
     {
       lastHeartbeatAt:
         nowIso(),
+
       cycleCount:
         Number(
-          company.cycleCount ?? 0
+          company.cycleCount ??
+          0
         ),
     }
   );
 
   return {
-    ok: true,
+    ok:
+      true,
+
     runtime:
       RUNTIME_VERSION,
+
     heartbeatAt:
       nowIso(),
   };
 }
 
-async function buildHealth(env) {
+async function buildHealth(
+  env
+) {
   const company =
     await getStore(
       env,
@@ -1794,10 +4964,14 @@ async function buildHealth(env) {
     );
 
   const tasks =
-    await getStore(
-      env,
-      "tasks",
-      []
+    (
+      await getStore(
+        env,
+        "tasks",
+        []
+      )
+    ).map(
+      normalizeTask
     );
 
   const runtimeMeta =
@@ -1816,19 +4990,6 @@ async function buildHealth(env) {
       )
       .first();
 
-  const pendingTasks =
-    getPendingTasks(tasks).length;
-
-  const pendingInternalTasks =
-    getPendingInternalTasks(
-      tasks
-    ).length;
-
-  const pendingHumanGates =
-    getHumanGateTasks(
-      tasks
-    ).length;
-
   const artifactIndex =
     await getStore(
       env,
@@ -1836,71 +4997,114 @@ async function buildHealth(env) {
       []
     );
 
+  const pendingInternalTasks =
+    getPendingInternalTasks(
+      tasks
+    ).length;
+
+  const pendingHumanGates =
+    getPendingHumanGates(
+      tasks
+    ).length;
+
   return {
-    ok: true,
+    ok:
+      true,
 
     runtime:
       RUNTIME_VERSION,
 
-    runtime_meta: {
-      cycle_count:
-        Number(
-          runtimeMeta?.cycle_count ??
+    schemaVersion:
+      SCHEMA_VERSION,
+
+    runtime_meta:
+      {
+        cycle_count:
+          Number(
+            runtimeMeta?.cycle_count ??
+            company.cycleCount ??
+            0
+          ),
+
+        runtime_version:
+          RUNTIME_VERSION,
+
+        last_heartbeat_at:
+          runtimeMeta?.last_heartbeat_at ??
+          null,
+      },
+
+    company:
+      {
+        cycleCount:
           company.cycleCount ??
-          0
-        ),
-      runtime_version:
-        RUNTIME_VERSION,
-      last_heartbeat_at:
-        runtimeMeta?.last_heartbeat_at ??
-        null,
-    },
+          0,
 
-    company: {
-      cycleCount:
-        company.cycleCount ?? 0,
+        currentFocus:
+          company.currentFocus,
 
-      currentFocus:
-        company.currentFocus,
+        nextAction:
+          company.nextAction,
 
-      nextAction:
-        company.nextAction,
+        pendingTasks:
+          tasks.filter(
+            (task) =>
+              task.status ===
+                "pending" ||
+              task.status ===
+                "running"
+          ).length,
 
-      pendingTasks,
+        pendingInternalTasks,
 
-      pendingInternalTasks,
+        pendingHumanGates,
 
-      pendingHumanGates,
+        businessCount:
+          company.businesses
+            ?.length ??
+          0,
 
-      businessCount:
-        company.businesses.length,
+        evidenceCount:
+          company
+            .researchEvidenceIndex
+            ?.length ??
+          0,
 
-      evidenceCount:
-        company.researchEvidenceIndex.length,
+        customerCount:
+          company.customers
+            ?.length ??
+          0,
 
-      customerCount:
-        company.customers.length,
+        outcomeCount:
+          company.outcomes
+            ?.length ??
+          0,
 
-      outcomeCount:
-        company.outcomes.length,
+        departmentCount:
+          normalizeDepartments(
+            company.departments
+          ).length,
 
-      departmentCount:
-        normalizeDepartments(
-          company.departments
-        ).length,
+        departments:
+          normalizeDepartments(
+            company.departments
+          ),
+      },
 
-      departments:
-        normalizeDepartments(
-          company.departments
-        ),
-    },
-
-    execution_available: true,
+    execution_available:
+      true,
 
     executor:
       "Cloud Executor (D1-backed)",
 
-    external_read: true,
+    self_maintenance_available:
+      true,
+
+    migration_manager_available:
+      true,
+
+    external_read:
+      true,
 
     customer_gateway_available:
       true,
@@ -1918,11 +5122,21 @@ async function buildHealth(env) {
       false,
 
     artifactCount:
-      artifactIndex.length,
+      Array.isArray(
+        artifactIndex
+      )
+        ? artifactIndex.length
+        : 0,
   };
 }
 
-async function getState(env) {
+async function getState(
+  env
+) {
+  await ensureInitialized(
+    env
+  );
+
   const company =
     await getStore(
       env,
@@ -1931,13 +5145,17 @@ async function getState(env) {
     );
 
   const tasks =
-    await getStore(
-      env,
-      "tasks",
-      []
+    (
+      await getStore(
+        env,
+        "tasks",
+        []
+      )
+    ).map(
+      normalizeTask
     );
 
-  const artifactIndex =
+  const artifacts =
     await getStore(
       env,
       "artifact_index",
@@ -1948,34 +5166,55 @@ async function getState(env) {
     runtime:
       RUNTIME_VERSION,
 
+    schemaVersion:
+      SCHEMA_VERSION,
+
     company,
 
     tasks,
 
     departments:
-      company.departments,
+      normalizeDepartments(
+        company.departments
+      ),
 
-    artifacts:
-      artifactIndex,
+    artifacts,
 
-    policy: {
-      autonomousInternalChanges:
-        true,
-      humanGateForIrreversibleExternalActions:
-        true,
-      paymentAutonomy:
-        false,
-      publicationAutonomy:
-        false,
-      contractAutonomy:
-        false,
-      externalCommunicationAutonomy:
-        false,
-    },
+    policy:
+      {
+        autonomousInternalChanges:
+          true,
+
+        selfStateRepair:
+          true,
+
+        selfDevelopmentProposal:
+          true,
+
+        humanGateForIrreversibleExternalActions:
+          true,
+
+        paymentAutonomy:
+          false,
+
+        publicationAutonomy:
+          false,
+
+        contractAutonomy:
+          false,
+
+        externalCommunicationAutonomy:
+          false,
+
+        productionDeployAutonomy:
+          false,
+      },
   };
 }
 
-async function getDepartments(env) {
+async function getDepartments(
+  env
+) {
   const company =
     await getStore(
       env,
@@ -1985,16 +5224,59 @@ async function getDepartments(env) {
 
   return normalizeDepartments(
     company.departments
-  ).map((department) => ({
-    department,
-    ...buildDepartmentCapability(
-      department,
-      company
-    ),
-  }));
+  ).map(
+    (
+      department
+    ) => {
+      const generated =
+        GENERATED_DEPARTMENTS[
+          department
+        ];
+
+      return {
+        department,
+
+        mission:
+          generated?.mission ??
+          `${department}に関する会社能力を維持・改善する。`,
+
+        currentCapability:
+          generated?.trigger
+            ? company
+                .capabilitySnapshot?.[
+                  generated.trigger
+                ] ??
+              false
+            : true,
+
+        nextAction:
+          definitionNextAction(
+            department
+          ),
+
+        autonomy:
+          {
+            internalTaskCreation:
+              true,
+
+            internalArtifactCreation:
+              true,
+
+            externalIrreversibleAction:
+              false,
+          },
+      };
+    }
+  );
 }
 
-async function getCapabilities(env) {
+async function getCapabilities(
+  env
+) {
+  await ensureInitialized(
+    env
+  );
+
   const company =
     await getStore(
       env,
@@ -2003,20 +5285,21 @@ async function getCapabilities(env) {
     );
 
   const tasks =
-    await getStore(
-      env,
-      "tasks",
-      []
+    (
+      await getStore(
+        env,
+        "tasks",
+        []
+      )
+    ).map(
+      normalizeTask
     );
 
-  const snapshot =
+  company.capabilitySnapshot =
     capabilitySnapshot(
       company,
       tasks
     );
-
-  company.capabilitySnapshot =
-    snapshot;
 
   company.departments =
     normalizeDepartments(
@@ -2034,18 +5317,14 @@ async function getCapabilities(env) {
       RUNTIME_VERSION,
 
     capabilities:
-      snapshot,
+      company.capabilitySnapshot,
 
     departments:
       company.departments,
 
     departmentDetails:
-      company.departments.map(
-        (department) =>
-          buildDepartmentCapability(
-            department,
-            company
-          )
+      await getDepartments(
+        env
       ),
   };
 }
@@ -2055,7 +5334,9 @@ async function customerIntake(
   request
 ) {
   const body =
-    await readJSON(request);
+    await readJSON(
+      request
+    );
 
   const company =
     await getStore(
@@ -2064,43 +5345,63 @@ async function customerIntake(
       defaultCompany()
     );
 
-  const customer = {
-    id: randomId("customer"),
-    source:
-      safeString(
-        body.source,
-        "unknown"
-      ),
-    name:
-      safeString(
-        body.name,
-        ""
-      ),
-    message:
-      safeString(
-        body.message,
-        ""
-      ),
-    product:
-      safeString(
-        body.product,
-        ""
-      ),
-    metadata:
-      body.metadata &&
-      typeof body.metadata ===
-        "object"
-        ? body.metadata
-        : {},
-    createdAt: nowIso(),
-  };
+  const customer =
+    {
+      id:
+        randomId(
+          "customer"
+        ),
+
+      source:
+        safeString(
+          body.source,
+          "unknown"
+        ),
+
+      name:
+        safeString(
+          body.name,
+          ""
+        ),
+
+      message:
+        safeString(
+          body.message,
+          ""
+        ),
+
+      product:
+        safeString(
+          body.product,
+          ""
+        ),
+
+      metadata:
+        body.metadata &&
+        typeof body.metadata ===
+          "object"
+          ? body.metadata
+          : {},
+
+      createdAt:
+        nowIso(),
+    };
+
+  company.customers =
+    Array.isArray(
+      company.customers
+    )
+      ? company.customers
+      : [];
 
   company.customers.push(
     customer
   );
 
   company.customers =
-    company.customers.slice(-1000);
+    company.customers.slice(
+      -1000
+    );
 
   await setStore(
     env,
@@ -2108,18 +5409,25 @@ async function customerIntake(
     company
   );
 
-  await saveMemory(env, {
-    type: "customer_intake",
-    customerId:
-      customer.id,
-    summary:
-      customer.message ||
-      "顧客入力を受領した。",
-  });
+  await addMemory(
+    env,
+    {
+      type:
+        "customer_intake",
+
+      customerId:
+        customer.id,
+
+      summary:
+        customer.message ||
+        "顧客入力を受領した。",
+    }
+  );
 
   return {
     status:
       "customer_received",
+
     customer,
   };
 }
@@ -2129,7 +5437,9 @@ async function outcomeRecord(
   request
 ) {
   const body =
-    await readJSON(request);
+    await readJSON(
+      request
+    );
 
   const company =
     await getStore(
@@ -2138,48 +5448,68 @@ async function outcomeRecord(
       defaultCompany()
     );
 
-  const outcome = {
-    id: randomId("outcome"),
+  const outcome =
+    {
+      id:
+        randomId(
+          "outcome"
+        ),
 
-    businessId:
-      safeString(
-        body.businessId,
-        ""
-      ) || null,
+      businessId:
+        safeString(
+          body.businessId,
+          ""
+        ) || null,
 
-    customerId:
-      safeString(
-        body.customerId,
-        ""
-      ) || null,
+      customerId:
+        safeString(
+          body.customerId,
+          ""
+        ) || null,
 
-    revenue:
-      Number(body.revenue ?? 0),
+      revenue:
+        Number(
+          body.revenue ??
+            0
+        ),
 
-    cost:
-      Number(body.cost ?? 0),
+      cost:
+        Number(
+          body.cost ??
+            0
+        ),
 
-    conversions:
-      Number(
-        body.conversions ?? 0
-      ),
+      conversions:
+        Number(
+          body.conversions ??
+            0
+        ),
 
-    notes:
-      safeString(
-        body.notes,
-        ""
-      ),
+      notes:
+        safeString(
+          body.notes,
+          ""
+        ),
 
-    createdAt:
-      nowIso(),
-  };
+      createdAt:
+        nowIso(),
+    };
+
+  company.outcomes =
+    Array.isArray(
+      company.outcomes
+    )
+      ? company.outcomes
+      : [];
 
   company.outcomes.push(
     outcome
   );
 
   company.outcomes =
-    company.outcomes.slice(-1000);
+    company.outcomes.slice(
+      -1000
+    );
 
   await setStore(
     env,
@@ -2187,26 +5517,37 @@ async function outcomeRecord(
     company
   );
 
-  await saveMemory(env, {
-    type: "outcome_recorded",
-    outcomeId:
-      outcome.id,
-    businessId:
-      outcome.businessId,
-    revenue:
-      outcome.revenue,
-    cost:
-      outcome.cost,
-  });
+  await addMemory(
+    env,
+    {
+      type:
+        "outcome_recorded",
+
+      outcomeId:
+        outcome.id,
+
+      businessId:
+        outcome.businessId,
+
+      revenue:
+        outcome.revenue,
+
+      cost:
+        outcome.cost,
+    }
+  );
 
   return {
     status:
       "outcome_recorded",
+
     outcome,
   };
 }
 
-async function publicPreview(env) {
+async function publicPreview(
+  env
+) {
   const company =
     await getStore(
       env,
@@ -2250,20 +5591,29 @@ async function publicPreview(env) {
       "外部公開はHuman Gate承認が必要。",
 
     business:
-      company.businesses[0] ?? null,
+      company.businesses?.[0] ??
+      null,
 
     salesPackage:
-      salesPackage ?? null,
+      salesPackage ??
+      null,
 
     salesEvaluation:
-      salesEvaluation ?? null,
+      salesEvaluation ??
+      null,
 
     externalActions:
       false,
   };
 }
 
-async function ceoReevaluate(env) {
+async function ceoReevaluate(
+  env
+) {
+  await ensureInitialized(
+    env
+  );
+
   const company =
     await getStore(
       env,
@@ -2272,10 +5622,14 @@ async function ceoReevaluate(env) {
     );
 
   const tasks =
-    await getStore(
-      env,
-      "tasks",
-      []
+    (
+      await getStore(
+        env,
+        "tasks",
+        []
+      )
+    ).map(
+      normalizeTask
     );
 
   const capabilities =
@@ -2284,16 +5638,13 @@ async function ceoReevaluate(env) {
       tasks
     );
 
-  company.capabilitySnapshot =
-    capabilities;
-
-  company.departments =
-    normalizeDepartments(
-      company.departments
+  const audit =
+    await auditState(
+      env
     );
 
-  const pendingHumanGates =
-    getHumanGateTasks(
+  const pendingHuman =
+    getPendingHumanGates(
       tasks
     );
 
@@ -2302,40 +5653,89 @@ async function ceoReevaluate(env) {
       tasks
     );
 
+  company.capabilitySnapshot =
+    capabilities;
+
+  rebuildHumanGates(
+    company,
+    tasks
+  );
+
   let decision;
 
-  if (pendingHumanGates.length > 0) {
-    decision = {
-      type: "defer",
-      reason:
-        "外部不可逆操作はHuman Gate待ち。",
-    };
+  if (
+    pendingHuman.length >
+    0
+  ) {
+    decision =
+      {
+        type:
+          "defer_external",
+
+        reason:
+          "外部不可逆操作はHuman Gate待ち。",
+      };
 
     company.currentFocus =
       "人間承認待ち";
 
     company.nextAction =
-      "Human Gateで公開等の外部操作を確認する";
+      audit.anomalyCount >
+      0
+        ? "内部不整合を自己保守しつつHuman Gateを待つ"
+        : "Human Gateで外部不可逆操作を確認する";
   } else if (
-    pendingInternal.length > 0
+    audit.anomalyCount >
+    0
   ) {
-    decision = {
-      type: "continue",
-      reason:
-        "内部能力改善タスクを優先実行する。",
-    };
+    decision =
+      {
+        type:
+          "repair_internal_state",
+
+        reason:
+          "会社内部に不整合が検出されたため自己保守を優先する。",
+      };
+
+    company.currentFocus =
+      "内部状態修復中";
+
+    company.nextAction =
+      "自己保守タスクを実行する";
+  } else if (
+    pendingInternal.length >
+    0
+  ) {
+    decision =
+      {
+        type:
+          "continue_internal",
+
+        reason:
+          "内部能力改善タスクを継続する。",
+      };
 
     company.currentFocus =
       "内部能力改善中";
+
+    company.nextAction =
+      pendingInternal[0]
+        .title;
   } else {
-    decision = {
-      type: "continue",
-      reason:
-        "事業・組織・能力を継続評価する。",
-    };
+    decision =
+      {
+        type:
+          "continue",
+
+        reason:
+          "事業・組織・能力を継続評価する。",
+      };
 
     company.currentFocus =
       "自律評価継続";
+
+    company.nextAction =
+      "次の能力不足と事業機会を探索する";
   }
 
   await setStore(
@@ -2344,21 +5744,37 @@ async function ceoReevaluate(env) {
     company
   );
 
-  await saveMemory(env, {
-    type: "ceo_reevaluation",
-    decision,
-    capabilities,
-  });
+  await addMemory(
+    env,
+    {
+      type:
+        "ceo_reevaluation",
+
+      decision,
+
+      capabilities,
+
+      anomalyCount:
+        audit.anomalyCount,
+    }
+  );
 
   return {
     runtime:
       RUNTIME_VERSION,
+
     decision,
+
     capabilities,
+
+    audit,
+
     pendingHumanGates:
-      pendingHumanGates.length,
+      pendingHuman.length,
+
     pendingInternal:
       pendingInternal.length,
+
     departments:
       company.departments,
   };
@@ -2369,7 +5785,9 @@ async function approveHumanGate(
   request
 ) {
   const body =
-    await readJSON(request);
+    await readJSON(
+      request
+    );
 
   const taskId =
     safeString(
@@ -2377,29 +5795,29 @@ async function approveHumanGate(
       ""
     );
 
-  const tasks =
-    await getStore(
-      env,
-      "tasks",
-      []
-    );
-
   const task =
-    tasks.find(
-      (item) => item.id === taskId
+    await findTaskById(
+      env,
+      taskId
     );
 
   if (
     !task ||
-    task.type !== "human_gate"
+    task.type !==
+      "human_gate"
   ) {
     return {
-      status: 404,
-      body: {
-        ok: false,
-        error:
-          "Human Gate task not found.",
-      },
+      status:
+        404,
+
+      body:
+        {
+          ok:
+            false,
+
+          error:
+            "Human Gate task not found.",
+        },
     };
   }
 
@@ -2410,34 +5828,59 @@ async function approveHumanGate(
       {
         status:
           "approved",
+
         approvedAt:
           nowIso(),
-        result: {
-          ...(task.result ?? {}),
-          humanApproved: true,
-        },
+
+        result:
+          {
+            ...(task.result ??
+              {}),
+
+            humanApproved:
+              true,
+          },
       }
     );
 
-  await saveMemory(env, {
-    type: "human_gate_approved",
-    taskId,
-    summary:
-      "Human Gateが承認された。",
-  });
+  await mergeAndMigrateState(
+    env
+  );
+
+  await addMemory(
+    env,
+    {
+      type:
+        "human_gate_approved",
+
+      taskId,
+
+      summary:
+        "Human Gateが承認された。",
+    }
+  );
 
   return {
-    status: 200,
-    body: {
-      ok: true,
-      message:
-        "Human Gate approved.",
-      task: updated,
-      externalActionPerformed:
-        false,
-      note:
-        "承認のみを記録。実際の外部公開・決済・契約等は別実装が必要。",
-    },
+    status:
+      200,
+
+    body:
+      {
+        ok:
+          true,
+
+        message:
+          "Human Gate approved.",
+
+        task:
+          updated,
+
+        externalActionPerformed:
+          false,
+
+        note:
+          "承認のみを記録。実際の外部公開・決済・契約等は別実装が必要。",
+      },
   };
 }
 
@@ -2446,7 +5889,9 @@ async function rejectHumanGate(
   request
 ) {
   const body =
-    await readJSON(request);
+    await readJSON(
+      request
+    );
 
   const taskId =
     safeString(
@@ -2454,29 +5899,29 @@ async function rejectHumanGate(
       ""
     );
 
-  const tasks =
-    await getStore(
-      env,
-      "tasks",
-      []
-    );
-
   const task =
-    tasks.find(
-      (item) => item.id === taskId
+    await findTaskById(
+      env,
+      taskId
     );
 
   if (
     !task ||
-    task.type !== "human_gate"
+    task.type !==
+      "human_gate"
   ) {
     return {
-      status: 404,
-      body: {
-        ok: false,
-        error:
-          "Human Gate task not found.",
-      },
+      status:
+        404,
+
+      body:
+        {
+          ok:
+            false,
+
+          error:
+            "Human Gate task not found.",
+        },
     };
   }
 
@@ -2487,61 +5932,54 @@ async function rejectHumanGate(
       {
         status:
           "rejected",
+
         rejectedAt:
           nowIso(),
-        result: {
-          ...(task.result ?? {}),
-          humanApproved: false,
-        },
+
+        result:
+          {
+            ...(task.result ??
+              {}),
+
+            humanApproved:
+              false,
+          },
       }
     );
 
-  await saveMemory(env, {
-    type: "human_gate_rejected",
-    taskId,
-    summary:
-      "Human Gateが拒否された。",
-  });
+  await mergeAndMigrateState(
+    env
+  );
+
+  await addMemory(
+    env,
+    {
+      type:
+        "human_gate_rejected",
+
+      taskId,
+
+      summary:
+        "Human Gateが拒否された。",
+    }
+  );
 
   return {
-    status: 200,
-    body: {
-      ok: true,
-      message:
-        "Human Gate rejected.",
-      task: updated,
-    },
+    status:
+      200,
+
+    body:
+      {
+        ok:
+          true,
+
+        message:
+          "Human Gate rejected.",
+
+        task:
+          updated,
+      },
   };
-}
-
-async function getArtifact(
-  env,
-  artifactId
-) {
-  if (!artifactId) {
-    return null;
-  }
-
-  return getStore(
-    env,
-    `artifact:${artifactId}`,
-    null
-  );
-}
-
-async function getEvidence(
-  env,
-  evidenceId
-) {
-  if (!evidenceId) {
-    return null;
-  }
-
-  return getStore(
-    env,
-    `evidence:${evidenceId}`,
-    null
-  );
 }
 
 async function routeAPI(
@@ -2549,7 +5987,9 @@ async function routeAPI(
   env
 ) {
   const url =
-    new URL(request.url);
+    new URL(
+      request.url
+    );
 
   const path =
     url.pathname;
@@ -2557,80 +5997,120 @@ async function routeAPI(
   const method =
     request.method.toUpperCase();
 
-  if (method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        "access-control-allow-origin": "*",
-        "access-control-allow-methods":
-          "GET,POST,OPTIONS",
-        "access-control-allow-headers":
-          "Content-Type",
-      },
-    });
-  }
-
   if (
-    path === "/api/health" &&
-    method === "GET"
+    method ===
+    "OPTIONS"
   ) {
-    return jsonResponse(
-      await buildHealth(env)
+    return new Response(
+      null,
+      {
+        status:
+          204,
+
+        headers:
+          {
+            "access-control-allow-origin":
+              "*",
+
+            "access-control-allow-methods":
+              "GET,POST,OPTIONS",
+
+            "access-control-allow-headers":
+              "Content-Type",
+          },
+      }
     );
   }
 
   if (
-    path === "/api/heartbeat" &&
-    method === "GET"
+    path ===
+      "/api/health" &&
+    method ===
+      "GET"
   ) {
     return jsonResponse(
-      await heartbeat(env)
+      await buildHealth(
+        env
+      )
     );
   }
 
   if (
-    path === "/api/state" &&
-    method === "GET"
+    path ===
+      "/api/heartbeat" &&
+    method ===
+      "GET"
   ) {
     return jsonResponse(
-      await getState(env)
+      await heartbeat(
+        env
+      )
     );
   }
 
   if (
-    path === "/api/capabilities" &&
-    method === "GET"
+    path ===
+      "/api/state" &&
+    method ===
+      "GET"
   ) {
     return jsonResponse(
-      await getCapabilities(env)
+      await getState(
+        env
+      )
     );
   }
 
   if (
-    path === "/api/departments" &&
-    method === "GET"
+    path ===
+      "/api/capabilities" &&
+    method ===
+      "GET"
   ) {
-    return jsonResponse({
-      runtime:
-        RUNTIME_VERSION,
-      departments:
-        await getDepartments(env),
-    });
+    return jsonResponse(
+      await getCapabilities(
+        env
+      )
+    );
   }
 
   if (
-    path === "/api/cycle" &&
-    method === "POST"
+    path ===
+      "/api/departments" &&
+    method ===
+      "GET"
   ) {
     return jsonResponse(
-      await companyCycle(env)
+      {
+        runtime:
+          RUNTIME_VERSION,
+
+        departments:
+          await getDepartments(
+            env
+          ),
+      }
+    );
+  }
+
+  if (
+    path ===
+      "/api/cycle" &&
+    method ===
+      "POST"
+  ) {
+    return jsonResponse(
+      await companyCycle(
+        env
+      )
     );
   }
 
   if (
     path ===
       "/api/self-organization/cycle" &&
-    method === "POST"
+    method ===
+      "POST"
   ) {
     return jsonResponse(
       await selfOrganizationCycle(
@@ -2640,17 +6120,97 @@ async function routeAPI(
   }
 
   if (
-    path === "/api/ceo/reevaluate" &&
-    method === "POST"
+    path ===
+      "/api/maintenance/audit" &&
+    method ===
+      "GET"
   ) {
+    await ensureInitialized(
+      env
+    );
+
     return jsonResponse(
-      await ceoReevaluate(env)
+      await auditState(
+        env
+      )
     );
   }
 
   if (
-    path === "/api/customer/intake" &&
-    method === "POST"
+    path ===
+      "/api/maintenance/cycle" &&
+    method ===
+      "POST"
+  ) {
+    return jsonResponse(
+      await maintenanceCycle(
+        env
+      )
+    );
+  }
+
+  if (
+    path ===
+      "/api/self-development/proposal" &&
+    method ===
+      "POST"
+  ) {
+    return jsonResponse(
+      await generateSelfDevelopmentProposal(
+        env
+      )
+    );
+  }
+
+  if (
+    path ===
+      "/api/migration/status" &&
+    method ===
+      "GET"
+  ) {
+    await ensureInitialized(
+      env
+    );
+
+    const company =
+      await getStore(
+        env,
+        "company",
+        defaultCompany()
+      );
+
+    return jsonResponse(
+      {
+        runtime:
+          RUNTIME_VERSION,
+
+        schemaVersion:
+          SCHEMA_VERSION,
+
+        migration:
+          company.migration,
+      }
+    );
+  }
+
+  if (
+    path ===
+      "/api/ceo/reevaluate" &&
+    method ===
+      "POST"
+  ) {
+    return jsonResponse(
+      await ceoReevaluate(
+        env
+      )
+    );
+  }
+
+  if (
+    path ===
+      "/api/customer/intake" &&
+    method ===
+      "POST"
   ) {
     return jsonResponse(
       await customerIntake(
@@ -2662,8 +6222,10 @@ async function routeAPI(
   }
 
   if (
-    path === "/api/outcome" &&
-    method === "POST"
+    path ===
+      "/api/outcome" &&
+    method ===
+      "POST"
   ) {
     return jsonResponse(
       await outcomeRecord(
@@ -2675,17 +6237,23 @@ async function routeAPI(
   }
 
   if (
-    path === "/api/public/preview" &&
-    method === "GET"
+    path ===
+      "/api/public/preview" &&
+    method ===
+      "GET"
   ) {
     return jsonResponse(
-      await publicPreview(env)
+      await publicPreview(
+        env
+      )
     );
   }
 
   if (
-    path === "/api/human-gate/approve" &&
-    method === "POST"
+    path ===
+      "/api/human-gate/approve" &&
+    method ===
+      "POST"
   ) {
     const result =
       await approveHumanGate(
@@ -2700,8 +6268,10 @@ async function routeAPI(
   }
 
   if (
-    path === "/api/human-gate/reject" &&
-    method === "POST"
+    path ===
+      "/api/human-gate/reject" &&
+    method ===
+      "POST"
   ) {
     const result =
       await rejectHumanGate(
@@ -2716,8 +6286,40 @@ async function routeAPI(
   }
 
   if (
-    path === "/api/research/fetch" &&
-    method === "GET"
+    path ===
+      "/api/research/sources" &&
+    method ===
+      "GET"
+  ) {
+    return jsonResponse(
+      {
+        ok:
+          true,
+
+        sources:
+          Object.entries(
+            RESEARCH_SOURCES
+          ).map(
+            ([
+              id,
+              source,
+            ]) => ({
+              id,
+              ...source,
+            })
+          ),
+
+        readOnly:
+          true,
+      }
+    );
+  }
+
+  if (
+    path ===
+      "/api/research/fetch" &&
+    method ===
+      "GET"
   ) {
     const sourceId =
       safeString(
@@ -2727,12 +6329,17 @@ async function routeAPI(
         ""
       );
 
-    if (!sourceId) {
+    if (
+      !sourceId
+    ) {
       return jsonResponse(
         {
-          ok: false,
+          ok:
+            false,
+
           error:
             "Missing ?source=<sourceId>",
+
           availableSources:
             Object.keys(
               RESEARCH_SOURCES
@@ -2749,14 +6356,22 @@ async function routeAPI(
           sourceId
         );
 
-      return jsonResponse({
-        ok: true,
-        evidence,
-      });
-    } catch (error) {
       return jsonResponse(
         {
-          ok: false,
+          ok:
+            true,
+
+          evidence,
+        }
+      );
+    } catch (
+      error
+    ) {
+      return jsonResponse(
+        {
+          ok:
+            false,
+
           error:
             error?.message ??
             String(error),
@@ -2767,27 +6382,10 @@ async function routeAPI(
   }
 
   if (
-    path === "/api/research/sources" &&
-    method === "GET"
-  ) {
-    return jsonResponse({
-      ok: true,
-      sources:
-        Object.entries(
-          RESEARCH_SOURCES
-        ).map(
-          ([id, source]) => ({
-            id,
-            ...source,
-          })
-        ),
-      readOnly: true,
-    });
-  }
-
-  if (
-    path === "/api/artifact" &&
-    method === "GET"
+    path ===
+      "/api/artifact" &&
+    method ===
+      "GET"
   ) {
     const artifactId =
       safeString(
@@ -2797,16 +6395,34 @@ async function routeAPI(
         ""
       );
 
+    if (
+      !artifactId
+    ) {
+      return jsonResponse(
+        {
+          ok:
+            false,
+
+          error:
+            "Missing ?id=<artifactId>",
+        },
+        400
+      );
+    }
+
     const artifact =
-      await getArtifact(
+      await getStore(
         env,
-        artifactId
+        `artifact:${artifactId}`,
+        null
       );
 
     if (!artifact) {
       return jsonResponse(
         {
-          ok: false,
+          ok:
+            false,
+
           error:
             "Artifact not found.",
         },
@@ -2814,15 +6430,21 @@ async function routeAPI(
       );
     }
 
-    return jsonResponse({
-      ok: true,
-      artifact,
-    });
+    return jsonResponse(
+      {
+        ok:
+          true,
+
+        artifact,
+      }
+    );
   }
 
   if (
-    path === "/api/evidence" &&
-    method === "GET"
+    path ===
+      "/api/evidence" &&
+    method ===
+      "GET"
   ) {
     const evidenceId =
       safeString(
@@ -2832,16 +6454,34 @@ async function routeAPI(
         ""
       );
 
+    if (
+      !evidenceId
+    ) {
+      return jsonResponse(
+        {
+          ok:
+            false,
+
+          error:
+            "Missing ?id=<evidenceId>",
+        },
+        400
+      );
+    }
+
     const evidence =
-      await getEvidence(
+      await getStore(
         env,
-        evidenceId
+        `evidence:${evidenceId}`,
+        null
       );
 
     if (!evidence) {
       return jsonResponse(
         {
-          ok: false,
+          ok:
+            false,
+
           error:
             "Evidence not found.",
         },
@@ -2849,15 +6489,21 @@ async function routeAPI(
       );
     }
 
-    return jsonResponse({
-      ok: true,
-      evidence,
-    });
+    return jsonResponse(
+      {
+        ok:
+          true,
+
+        evidence,
+      }
+    );
   }
 
   if (
-    path === "/api/task" &&
-    method === "GET"
+    path ===
+      "/api/task" &&
+    method ===
+      "GET"
   ) {
     const taskId =
       safeString(
@@ -2876,7 +6522,9 @@ async function routeAPI(
     if (!task) {
       return jsonResponse(
         {
-          ok: false,
+          ok:
+            false,
+
           error:
             "Task not found.",
         },
@@ -2884,18 +6532,26 @@ async function routeAPI(
       );
     }
 
-    return jsonResponse({
-      ok: true,
-      task,
-    });
+    return jsonResponse(
+      {
+        ok:
+          true,
+
+        task,
+      }
+    );
   }
 
   if (
-    path === "/api/task" &&
-    method === "POST"
+    path ===
+      "/api/task" &&
+    method ===
+      "POST"
   ) {
     const body =
-      await readJSON(request);
+      await readJSON(
+        request
+      );
 
     const task =
       await createTask(
@@ -2906,26 +6562,31 @@ async function routeAPI(
               body.type,
               "internal_task"
             ),
+
           action:
             safeString(
               body.action,
               "internal_analysis"
             ),
+
           title:
             safeString(
               body.title,
               "Internal Task"
             ),
+
           description:
             safeString(
               body.description,
               ""
             ),
+
           department:
             safeString(
               body.department,
               "企画"
             ),
+
           priority:
             clampNumber(
               body.priority,
@@ -2933,17 +6594,29 @@ async function routeAPI(
               100,
               50
             ),
+
           internalOnly:
-            body.internalOnly === true,
+            body.internalOnly ===
+            true,
+
           safeAutonomy:
-            body.safeAutonomy === true,
+            body.safeAutonomy ===
+            true,
+
           externalAction:
-            body.externalAction === true,
+            body.externalAction ===
+            true,
+
+          requiresHuman:
+            body.requiresHuman ===
+            true,
+
           businessId:
             safeString(
               body.businessId,
               ""
             ) || null,
+
           input:
             body.input &&
             typeof body.input ===
@@ -2955,7 +6628,9 @@ async function routeAPI(
 
     return jsonResponse(
       {
-        ok: true,
+        ok:
+          true,
+
         task,
       },
       201
@@ -2976,12 +6651,15 @@ async function handleRequest(
         env
       );
 
-    if (apiResponse) {
+    if (
+      apiResponse
+    ) {
       return apiResponse;
     }
 
     if (
-      request.method !== "GET"
+      request.method !==
+      "GET"
     ) {
       return textResponse(
         "Method Not Allowed",
@@ -2989,12 +6667,17 @@ async function handleRequest(
       );
     }
 
-    if (!env.ASSETS) {
+    if (
+      !env.ASSETS
+    ) {
       return jsonResponse(
         {
-          ok: true,
+          ok:
+            true,
+
           runtime:
             RUNTIME_VERSION,
+
           message:
             "AI Company Core Worker is running.",
         }
@@ -3004,12 +6687,17 @@ async function handleRequest(
     return env.ASSETS.fetch(
       request
     );
-  } catch (error) {
+  } catch (
+    error
+  ) {
     return jsonResponse(
       {
-        ok: false,
+        ok:
+          false,
+
         runtime:
           RUNTIME_VERSION,
+
         error:
           error?.message ??
           String(error),
@@ -3020,7 +6708,10 @@ async function handleRequest(
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(
+    request,
+    env
+  ) {
     return handleRequest(
       request,
       env
@@ -3038,13 +6729,19 @@ export default {
           env
         );
 
-        await heartbeat(env);
+        await heartbeat(
+          env
+        );
 
-        await companyCycle(
+        await maintenanceCycle(
           env
         );
 
         await selfOrganizationCycle(
+          env
+        );
+
+        await companyCycle(
           env
         );
 

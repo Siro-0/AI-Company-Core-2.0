@@ -12,8 +12,8 @@ const savedTasks = localStorage.getItem("aiCompanyTasks");
 let tasks = savedTasks ? JSON.parse(savedTasks) : [];
 
 /*
-  昔のタスクに優先度が入っていなくても
-  正常に表示できるようにする
+  以前のタスクに優先度がなくても
+  「通常」として扱う
 */
 tasks = tasks.map(function (task) {
   return {
@@ -53,17 +53,31 @@ function saveTasks() {
   localStorage.setItem("aiCompanyTasks", JSON.stringify(tasks));
 }
 
+function getPriorityValue(priority) {
+  if (priority === "高") {
+    return 1;
+  }
+
+  if (priority === "通常") {
+    return 2;
+  }
+
+  return 3;
+}
+
 function renderTasks() {
   taskList.replaceChildren();
 
-  tasks.forEach(function (task, index) {
+  const sortedTasks = [...tasks].sort(function (a, b) {
+    return getPriorityValue(a.priority) - getPriorityValue(b.priority);
+  });
+
+  sortedTasks.forEach(function (task) {
     const item = document.createElement("li");
 
     const taskText = document.createElement("span");
 
     taskText.textContent =
-      (index + 1) +
-      ". " +
       task.text +
       "（優先度：" +
       task.priority +
@@ -96,7 +110,11 @@ function renderTasks() {
     deleteButton.type = "button";
 
     deleteButton.addEventListener("click", function () {
-      tasks.splice(index, 1);
+      const taskIndex = tasks.indexOf(task);
+
+      if (taskIndex !== -1) {
+        tasks.splice(taskIndex, 1);
+      }
 
       saveTasks();
       renderTasks();

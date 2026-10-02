@@ -11,10 +11,6 @@ const taskCount = document.getElementById("taskCount");
 const savedTasks = localStorage.getItem("aiCompanyTasks");
 let tasks = savedTasks ? JSON.parse(savedTasks) : [];
 
-/*
-  以前のタスクに必要な情報がなくても
-  初期値を入れて正常に扱う
-*/
 tasks = tasks.map(function (task) {
   return {
     text: task.text,
@@ -77,10 +73,6 @@ function renderTasks() {
       return priorityDifference;
     }
 
-    /*
-      同じ優先度なら
-      未完了 → 完了
-    */
     if (a.completed !== b.completed) {
       return a.completed ? 1 : -1;
     }
@@ -102,6 +94,35 @@ function renderTasks() {
     if (task.completed) {
       taskText.textContent += "（完了）";
     }
+
+    const editButton = document.createElement("button");
+    editButton.textContent = "編集";
+    editButton.type = "button";
+
+    editButton.addEventListener("click", function () {
+      const newText = window.prompt(
+        "新しいタスク名を入力してください",
+        task.text
+      );
+
+      if (newText === null) {
+        return;
+      }
+
+      const trimmedText = newText.trim();
+
+      if (trimmedText === "") {
+        status.textContent = "タスク名を入力してください";
+        return;
+      }
+
+      task.text = trimmedText;
+
+      saveTasks();
+      renderTasks();
+
+      status.textContent = "タスクを編集しました";
+    });
 
     const completeButton = document.createElement("button");
     completeButton.textContent =
@@ -139,6 +160,7 @@ function renderTasks() {
     });
 
     item.appendChild(taskText);
+    item.appendChild(editButton);
     item.appendChild(completeButton);
     item.appendChild(deleteButton);
 

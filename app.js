@@ -12,8 +12,7 @@ const savedTasks = localStorage.getItem("aiCompanyTasks");
 let tasks = savedTasks ? JSON.parse(savedTasks) : [];
 
 /*
-  これまでに作ったタスクを
-  新しいデータ構造に合わせる
+  以前のタスクを新しい形式へ変換
 */
 tasks = tasks.map(function (task) {
   let taskStatus = task.status;
@@ -27,7 +26,8 @@ tasks = tasks.map(function (task) {
     priority: task.priority || "通常",
     status: taskStatus,
     runCount: task.runCount || 0,
-    lastRunAt: task.lastRunAt || null
+    lastRunAt: task.lastRunAt || null,
+    result: task.result || ""
   };
 });
 
@@ -51,14 +51,19 @@ runButton.addEventListener("click", function () {
   status.textContent = "正常稼働";
 
   if (inputText === "") {
-    result.textContent = "動作テストに成功しました。入力は空です。";
+    result.textContent =
+      "動作テストに成功しました。入力は空です。";
   } else {
-    result.textContent = "入力を受け取りました：" + inputText;
+    result.textContent =
+      "入力を受け取りました：" + inputText;
   }
 });
 
 function saveTasks() {
-  localStorage.setItem("aiCompanyTasks", JSON.stringify(tasks));
+  localStorage.setItem(
+    "aiCompanyTasks",
+    JSON.stringify(tasks)
+  );
 }
 
 function getPriorityValue(priority) {
@@ -145,6 +150,16 @@ function renderTasks() {
       "回 / 最終実行：" +
       formatRunTime(task.lastRunAt);
 
+    const taskResult = document.createElement("small");
+
+    if (task.result) {
+      taskResult.textContent =
+        "実行結果：" + task.result;
+    } else {
+      taskResult.textContent =
+        "実行結果：まだありません";
+    }
+
     const editButton = document.createElement("button");
     editButton.textContent = "編集";
     editButton.type = "button";
@@ -162,7 +177,8 @@ function renderTasks() {
       const trimmedText = newText.trim();
 
       if (trimmedText === "") {
-        status.textContent = "タスク名を入力してください";
+        status.textContent =
+          "タスク名を入力してください";
         return;
       }
 
@@ -171,7 +187,8 @@ function renderTasks() {
       saveTasks();
       renderTasks();
 
-      status.textContent = "タスクを編集しました";
+      status.textContent =
+        "タスクを編集しました";
     });
 
     const actionButton = document.createElement("button");
@@ -188,7 +205,9 @@ function renderTasks() {
         saveTasks();
         renderTasks();
 
-        status.textContent = "タスクを実行中にしました";
+        status.textContent =
+          "タスクを実行中にしました";
+
         result.textContent =
           "実行中：" + task.text;
       });
@@ -196,17 +215,38 @@ function renderTasks() {
       actionButton.textContent = "完了";
 
       actionButton.addEventListener("click", function () {
+        const taskResult = window.prompt(
+          "このタスクの実行結果を入力してください",
+          task.result
+        );
+
+        if (taskResult === null) {
+          return;
+        }
+
+        const trimmedResult = taskResult.trim();
+
+        if (trimmedResult === "") {
+          status.textContent =
+            "実行結果を入力してください";
+          return;
+        }
+
+        task.result = trimmedResult;
         task.status = "completed";
 
         saveTasks();
         renderTasks();
 
-        status.textContent = "タスクを完了にしました";
+        status.textContent =
+          "タスクを完了にしました";
+
         result.textContent =
           "完了：" + task.text;
       });
     } else {
-      actionButton.textContent = "未完了に戻す";
+      actionButton.textContent =
+        "未完了に戻す";
 
       actionButton.addEventListener("click", function () {
         task.status = "pending";
@@ -214,7 +254,9 @@ function renderTasks() {
         saveTasks();
         renderTasks();
 
-        status.textContent = "タスクを未完了に戻しました";
+        status.textContent =
+          "タスクを未完了に戻しました";
+
         result.textContent =
           "未完了：" + task.text;
       });
@@ -234,11 +276,13 @@ function renderTasks() {
       saveTasks();
       renderTasks();
 
-      status.textContent = "タスクを削除しました";
+      status.textContent =
+        "タスクを削除しました";
     });
 
     item.appendChild(taskText);
     item.appendChild(historyText);
+    item.appendChild(taskResult);
     item.appendChild(editButton);
     item.appendChild(actionButton);
     item.appendChild(deleteButton);
@@ -254,7 +298,8 @@ addTaskButton.addEventListener("click", function () {
   const taskText = taskInput.value.trim();
 
   if (taskText === "") {
-    status.textContent = "タスクを入力してください";
+    status.textContent =
+      "タスクを入力してください";
     return;
   }
 
@@ -263,7 +308,8 @@ addTaskButton.addEventListener("click", function () {
     priority: prioritySelect.value,
     status: "pending",
     runCount: 0,
-    lastRunAt: null
+    lastRunAt: null,
+    result: ""
   });
 
   saveTasks();
@@ -273,7 +319,8 @@ addTaskButton.addEventListener("click", function () {
 
   renderTasks();
 
-  status.textContent = "タスクを登録しました";
+  status.textContent =
+    "タスクを登録しました";
 });
 
 saveTasks();

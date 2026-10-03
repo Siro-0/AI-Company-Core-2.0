@@ -1,9 +1,13 @@
 worker.js
 wrangler.toml
 schema.sql
-local_executor.py
-README.md
+README.txt
+ARCHITECTURE-7.0.2.md
+MIGRATION-7.0.1.md
+MIGRATION-7.0.2.md
 .assetsignore
 .git/**
 .github/**
 company_workspace/**
+*.pyc
+__pycache__/**

@@ -1,7 +1,7 @@
 worker.js
 wrangler.toml
 schema.sql
-README.txt
+README.md
 ARCHITECTURE-7.0.2.md
 MIGRATION-7.0.1.md
 MIGRATION-7.0.2.md
@@ -11,3 +11,4 @@ MIGRATION-7.0.2.md
 company_workspace/**
 *.pyc
 __pycache__/**
+local_executor.py
